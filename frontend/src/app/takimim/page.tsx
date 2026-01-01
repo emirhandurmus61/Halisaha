@@ -67,6 +67,28 @@ interface PlayerSearchResult {
   hasTeam: boolean;
 }
 
+interface TeamMatch {
+  id: string;
+  reservationDate: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
+  totalPrice: number;
+  teamName: string;
+  createdAt: string;
+  playerCount: number;
+  field: {
+    name: string;
+    fieldType: string;
+  };
+  venue: {
+    name: string;
+    address: string;
+    city: string;
+  };
+}
+
 export default function MyTeamPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -97,6 +119,12 @@ export default function MyTeamPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerSearchResult | null>(null);
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviting, setInviting] = useState(false);
+
+  // Matches Modal
+  const [showMatchesModal, setShowMatchesModal] = useState(false);
+  const [matches, setMatches] = useState<{ upcoming: TeamMatch[]; past: TeamMatch[] }>({ upcoming: [], past: [] });
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [activeMatchTab, setActiveMatchTab] = useState<'upcoming' | 'past'>('upcoming');
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -222,6 +250,39 @@ export default function MyTeamPage() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchUsername]);
+
+  const fetchTeamMatches = async () => {
+    setMatchesLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+
+      const response = await fetch(`${apiUrl}/teams/matches`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMatches(data.data);
+      } else {
+        setToast({
+          message: data.message || 'Maçlar yüklenemedi',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Fetch matches error:', error);
+      setToast({
+        message: 'Maçlar yüklenirken hata oluştu',
+        type: 'error'
+      });
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
 
   const handleInvitePlayer = async () => {
     if (!selectedPlayer) return;
@@ -522,6 +583,18 @@ export default function MyTeamPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               Rakip Bul
+            </button>
+            <button
+              onClick={() => {
+                setShowMatchesModal(true);
+                fetchTeamMatches();
+              }}
+              className="px-6 py-3 bg-white text-green-600 rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Maçlar
             </button>
             <button
               onClick={openSettingsModal}
@@ -887,6 +960,138 @@ export default function MyTeamPage() {
               >
                 {updating ? 'Kaydediliyor...' : 'Kaydet'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Matches Modal */}
+      {showMatchesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowMatchesModal(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">Takım Maçları</h3>
+                </div>
+                <button onClick={() => setShowMatchesModal(false)} className="text-white/80 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setActiveMatchTab('upcoming')}
+                  className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeMatchTab === 'upcoming'
+                      ? 'bg-white text-green-600'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Gelecek Maçlar ({matches.upcoming.length})
+                </button>
+                <button
+                  onClick={() => setActiveMatchTab('past')}
+                  className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeMatchTab === 'past'
+                      ? 'bg-white text-green-600'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  Geçmiş Maçlar ({matches.past.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {matchesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(activeMatchTab === 'upcoming' ? matches.upcoming : matches.past).length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium">
+                        {activeMatchTab === 'upcoming' ? 'Henüz gelecek maç yok' : 'Henüz geçmiş maç yok'}
+                      </p>
+                    </div>
+                  ) : (
+                    (activeMatchTab === 'upcoming' ? matches.upcoming : matches.past).map((match) => (
+                      <div key={match.id} className="bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 rounded-2xl p-5 hover:shadow-lg transition-all">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          {/* Left Side - Match Info */}
+                          <div className="flex-1">
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-900 text-lg mb-1">{match.venue.name}</h4>
+                                <p className="text-sm text-gray-600 mb-2">{match.field.name} • {match.field.fieldType}</p>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                  <div className="flex items-center gap-1 text-gray-700">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>{match.reservationDate.split('-').reverse().join('.')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-gray-700">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{match.startTime.slice(0, 5)} - {match.endTime.slice(0, 5)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-gray-700">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    <span>{match.playerCount} Oyuncu</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Side - Price & Status */}
+                          <div className="flex flex-col items-end gap-2 md:ml-4">
+                            <div className="text-2xl font-bold text-green-600">₺{match.totalPrice}</div>
+                            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              match.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                              match.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              match.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {match.status === 'completed' ? 'Tamamlandı' :
+                               match.status === 'pending' ? 'Beklemede' :
+                               match.status === 'cancelled' ? 'İptal' :
+                               match.status}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

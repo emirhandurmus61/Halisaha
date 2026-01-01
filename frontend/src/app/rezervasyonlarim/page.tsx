@@ -8,6 +8,7 @@ import { playerSearchService } from '@/services/player-search.service';
 import { authService } from '@/services/auth.service';
 import Navbar from '@/components/Navbar';
 import Toast from '@/components/Toast';
+import PlayerRatingModal from '@/components/PlayerRatingModal';
 
 interface Reservation {
   id: string;
@@ -48,6 +49,12 @@ export default function MyReservationsPage() {
 
   // Requests modal states
   const [showRequestsModal, setShowRequestsModal] = useState(false);
+
+  // Rating modal states
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingReservation, setRatingReservation] = useState<Reservation | null>(null);
+  const [rateablePlayers, setRateablePlayers] = useState<any[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [selectedReservationForRequests, setSelectedReservationForRequests] = useState<Reservation | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -73,6 +80,7 @@ export default function MyReservationsPage() {
   const loadReservations = async () => {
     try {
       const data = await reservationService.getMyReservations();
+      console.log('Loaded reservations:', data);
       setReservations(data);
     } catch (error) {
       console.error('Rezervasyonlar yüklenemedi:', error);
@@ -291,17 +299,22 @@ export default function MyReservationsPage() {
   const isPastReservation = (date: string, endTime: string) => {
     if (!date || !endTime) return false;
     try {
-      // date formatı: "YYYY-MM-DD", endTime formatı: "HH:MM:SS"
-      const [year, month, day] = date.split('-').map(Number);
-      const [hours, minutes] = endTime.split(':').map(Number);
+      // date formatı: "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm:ss.sssZ", endTime formatı: "HH:MM:SS"
+      const dateOnly = date.split('T')[0]; // T varsa sadece tarih kısmını al
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      const timeOnly = endTime.split('.')[0]; // Milisaniye varsa at
+      const [hours, minutes] = timeOnly.split(':').map(Number);
 
       if (!year || !month || !day || hours === undefined || minutes === undefined) return false;
 
       const reservationDateTime = new Date(year, month - 1, day, hours, minutes);
       const now = new Date();
 
+      console.log('Checking reservation:', { date, endTime, reservationDateTime, now, isPast: reservationDateTime < now });
+
       return reservationDateTime < now;
-    } catch {
+    } catch (error) {
+      console.error('isPastReservation error:', error);
       return false;
     }
   };
@@ -309,20 +322,17 @@ export default function MyReservationsPage() {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Tarih Belirtilmemiş';
     try {
-      // dateString zaten "YYYY-MM-DD" formatında geliyor
-      const [year, month, day] = dateString.split('-').map(Number);
-      if (!year || !month || !day) return 'Geçersiz Tarih';
+      // dateString "YYYY-MM-DD" veya "YYYY-MM-DDTHH:mm:ss.sssZ" formatında olabilir
+      const dateOnly = dateString.split('T')[0]; // T varsa sadece tarih kısmını al
+      const [year, month, day] = dateOnly.split('-');
 
-      const date = new Date(year, month - 1, day);
-      if (isNaN(date.getTime())) return 'Geçersiz Tarih';
+      if (!year || !month || !day) return 'Tarih Belirtilmemiş';
 
-      return date.toLocaleDateString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
-    } catch {
-      return 'Geçersiz Tarih';
+      // Doğrudan formatla
+      return `${day.padStart(2, '0')}.${month.padStart(2, '0')}.${year}`;
+    } catch (error) {
+      console.error('Date formatting error:', error, 'dateString:', dateString);
+      return 'Tarih Belirtilmemiş';
     }
   };
 
@@ -620,17 +630,55 @@ export default function MyReservationsPage() {
                               </svg>
                               <span className="whitespace-nowrap">İstekleri Gör</span>
                             </button>
+                            {canCancel && (
+                              <button
+                                onClick={() => handleCancelReservation(reservation.id)}
+                                className="w-full lg:w-auto px-4 py-2.5 border-2 border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm"
+                              >
+                                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span className="whitespace-nowrap">İptal Et</span>
+                              </button>
+                            )}
                           </>
                         )}
-                        {canCancel && (
+
+                        {isPast && (
                           <button
-                            onClick={() => handleCancelReservation(reservation.id)}
-                            className="w-full lg:w-auto px-4 py-2.5 border-2 border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm"
+                            onClick={async () => {
+                              setRatingReservation(reservation);
+                              setLoadingPlayers(true);
+                              setShowRatingModal(true);
+
+                              try {
+                                const token = authService.getToken();
+                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+
+                                const response = await fetch(`${apiUrl}/ratings/reservation/${reservation.id}/players`, {
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`
+                                  }
+                                });
+
+                                const data = await response.json();
+                                console.log('Rateable players:', data);
+
+                                if (data.success) {
+                                  setRateablePlayers(data.data || []);
+                                }
+                              } catch (error) {
+                                console.error('Error loading players:', error);
+                              } finally {
+                                setLoadingPlayers(false);
+                              }
+                            }}
+                            className="w-full lg:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm"
                           >
                             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                             </svg>
-                            <span className="whitespace-nowrap">İptal Et</span>
+                            <span className="whitespace-nowrap">Oyuncu Değerlendir</span>
                           </button>
                         )}
                         <Link href={`/sahalar/${reservation.fieldId}`} className="w-full lg:w-auto">
@@ -694,11 +742,11 @@ export default function MyReservationsPage() {
                   <div>
                     <p className="text-xs text-green-700 font-medium">Tarih</p>
                     <p className="text-sm font-bold text-green-900">
-                      {new Date(selectedReservationForSearch.reservationDate + 'T00:00:00').toLocaleDateString('tr-TR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                      })}
+                      {(() => {
+                        const [year, month, day] = selectedReservationForSearch.reservationDate.split('-');
+                        const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+                        return `${parseInt(day)} ${months[parseInt(month) - 1]} ${year}`;
+                      })()}
                     </p>
                   </div>
                   <div>
@@ -1124,6 +1172,28 @@ export default function MyReservationsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && ratingReservation && (
+        <PlayerRatingModal
+          reservationId={ratingReservation.id}
+          players={rateablePlayers}
+          onClose={() => {
+            setShowRatingModal(false);
+            setRatingReservation(null);
+            setRateablePlayers([]);
+          }}
+          onSuccess={() => {
+            setShowRatingModal(false);
+            setRatingReservation(null);
+            setRateablePlayers([]);
+            setToast({
+              message: 'Değerlendirme başarıyla kaydedildi!',
+              type: 'success'
+            });
+          }}
+        />
       )}
 
       {/* Toast Notification */}

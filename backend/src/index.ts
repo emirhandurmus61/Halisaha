@@ -15,6 +15,7 @@ import playerSearchRoutes from './routes/player-search.routes';
 import teamRoutes from './routes/team.routes';
 import opponentSearchRoutes from './routes/opponent-search.routes';
 import adminRoutes from './routes/admin.routes';
+import ratingRoutes from './routes/rating.routes';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use(`${apiPrefix}/player-search`, playerSearchRoutes);
 app.use(`${apiPrefix}/teams`, teamRoutes);
 app.use(`${apiPrefix}/opponent-search`, opponentSearchRoutes);
 app.use(`${apiPrefix}/admin`, adminRoutes);
+app.use(`${apiPrefix}/ratings`, ratingRoutes);
 
 // 404 handler
 app.use((req, res) => {

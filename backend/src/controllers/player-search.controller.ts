@@ -613,7 +613,7 @@ export const acceptRequest = async (req: Request, res: Response) => {
 
     // İsteği ve aramayı kontrol et
     const requestResult = await pool.query(
-      `SELECT psp.*, psl.organizer_id, psl.players_needed, psl.id as listing_id
+      `SELECT psp.*, psl.organizer_id, psl.players_needed, psl.id as listing_id, psl.reservation_id
        FROM player_search_participants psp
        JOIN player_search_listings psl ON psp.listing_id = psl.id
        WHERE psp.id = $1`,
@@ -662,6 +662,16 @@ export const acceptRequest = async (req: Request, res: Response) => {
        RETURNING *`,
       [requestId]
     );
+
+    // Kabul edilen oyuncuyu reservation_players tablosuna ekle
+    if (request.reservation_id) {
+      await pool.query(
+        `INSERT INTO reservation_players (reservation_id, user_id, added_via)
+         VALUES ($1, $2, 'player_search')
+         ON CONFLICT (reservation_id, user_id) DO NOTHING`,
+        [request.reservation_id, request.user_id]
+      );
+    }
 
     // Eğer yeterli oyuncu bulunduysa aramayı kapat
     if (currentAccepted + 1 >= request.players_needed) {

@@ -315,3 +315,50 @@ export const changePassword = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Kullanıcı arama (oyuncu eklemek için)
+export const searchUsers = async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || typeof q !== 'string' || q.length < 2) {
+      return res.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const searchTerm = `%${q}%`;
+
+    const result = await pool.query(
+      `SELECT id, email, first_name, last_name, elo_rating
+       FROM users
+       WHERE is_active = true
+       AND (
+         LOWER(first_name) LIKE LOWER($1)
+         OR LOWER(last_name) LIKE LOWER($1)
+         OR LOWER(email) LIKE LOWER($1)
+       )
+       LIMIT 10`,
+      [searchTerm]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows.map(user => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        eloRating: user.elo_rating,
+      })),
+    });
+  } catch (error: any) {
+    console.error('Search users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Kullanıcı arama hatası',
+      error: error.message,
+    });
+  }
+};

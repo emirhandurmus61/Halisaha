@@ -788,3 +788,117 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response) =>
     });
   }
 };
+
+// Takımın maçlarını (rezervasyonlarını) getir
+export const getTeamMatches = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Kimlik doğrulama hatası',
+      });
+    }
+
+    // Kullanıcının takımını bul
+    const teamResult = await pool.query(
+      `SELECT DISTINCT t.id
+       FROM teams t
+       LEFT JOIN team_members tm ON t.id = tm.team_id
+       WHERE t.captain_id = $1 OR tm.user_id = $1
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (teamResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Takım bulunamadı',
+      });
+    }
+
+    const teamId = teamResult.rows[0].id;
+
+    // Takımın rezervasyonlarını getir
+    const matchesResult = await pool.query(
+      `SELECT
+        r.id,
+        r.reservation_date,
+        r.start_time,
+        r.end_time,
+        r.status,
+        r.payment_status,
+        r.total_price,
+        r.team_name,
+        r.created_at,
+        f.name as field_name,
+        f.field_type,
+        v.name as venue_name,
+        v.address,
+        v.city,
+        COUNT(DISTINCT rp.user_id) as player_count
+       FROM reservations r
+       JOIN fields f ON r.field_id = f.id
+       JOIN venues v ON f.venue_id = v.id
+       LEFT JOIN reservation_players rp ON r.id = rp.reservation_id
+       WHERE r.team_id = $1
+       GROUP BY r.id, f.id, f.name, f.field_type, v.name, v.address, v.city
+       ORDER BY r.reservation_date DESC, r.start_time DESC`,
+      [teamId]
+    );
+
+    // Geçmiş ve gelecek maçları ayır
+    const now = new Date();
+    const upcomingMatches: any[] = [];
+    const pastMatches: any[] = [];
+
+    matchesResult.rows.forEach((match) => {
+      const matchDateTime = new Date(match.reservation_date + 'T' + match.end_time);
+
+      const formattedMatch = {
+        id: match.id,
+        reservationDate: match.reservation_date,
+        startTime: match.start_time,
+        endTime: match.end_time,
+        status: match.status,
+        paymentStatus: match.payment_status,
+        totalPrice: match.total_price,
+        teamName: match.team_name,
+        createdAt: match.created_at,
+        playerCount: parseInt(match.player_count || '0'),
+        field: {
+          name: match.field_name,
+          fieldType: match.field_type,
+        },
+        venue: {
+          name: match.venue_name,
+          address: match.address,
+          city: match.city,
+        },
+      };
+
+      if (matchDateTime > now) {
+        upcomingMatches.push(formattedMatch);
+      } else {
+        pastMatches.push(formattedMatch);
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        upcoming: upcomingMatches,
+        past: pastMatches,
+        total: matchesResult.rows.length,
+      },
+    });
+  } catch (error: any) {
+    console.error('Get team matches error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Maçlar alınırken hata oluştu',
+      error: error.message,
+    });
+  }
+};

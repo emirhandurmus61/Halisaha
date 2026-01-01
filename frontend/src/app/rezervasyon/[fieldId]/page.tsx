@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { reservationService } from '@/services/reservation.service';
 import { authService } from '@/services/auth.service';
+import Notification from '@/components/Notification';
 
 export default function ReservationPage() {
   const params = useParams();
@@ -16,6 +17,19 @@ export default function ReservationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookedSlots, setBookedSlots] = useState<any[]>([]);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+  } | null>(null);
+
+  // Yeni eklenen state'ler
+  const [useTeam, setUseTeam] = useState(false);
+  const [userTeam, setUserTeam] = useState<any>(null);
+  const [addPlayers, setAddPlayers] = useState(false);
+  const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
+  const [playerSearchQuery, setPlayerSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   useEffect(() => {
     // Authentication kontrolü
@@ -27,7 +41,76 @@ export default function ReservationPage() {
     // Bugünün tarihini varsayılan olarak set et
     const today = new Date().toISOString().split('T')[0];
     setSelectedDate(today);
+
+    // Kullanıcının takımlarını yükle
+    loadUserTeams();
   }, [router]);
+
+  const loadUserTeams = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      console.log('Loading user team from:', `${apiUrl}/teams/my-team`);
+
+      const response = await fetch(`${apiUrl}/teams/my-team`, {
+        headers: {
+          'Authorization': `Bearer ${authService.getToken()}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('Team response:', data);
+
+      if (data.success && data.data) {
+        setUserTeam(data.data);
+        console.log('User team loaded:', data.data);
+      } else {
+        setUserTeam(null);
+        console.log('User has no team');
+      }
+    } catch (error) {
+      console.error('Takım yüklenemedi:', error);
+    }
+  };
+
+  const searchPlayers = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      console.log('Searching players with query:', query);
+
+      const response = await fetch(`${apiUrl}/users/search?q=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Bearer ${authService.getToken()}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('Search response:', data);
+
+      if (data.success) {
+        setSearchResults(data.data || []);
+        console.log('Search results:', data.data);
+      }
+    } catch (error) {
+      console.error('Oyuncu arama hatası:', error);
+    }
+  };
+
+  const addPlayer = (userId: string) => {
+    if (!selectedPlayers.includes(userId)) {
+      setSelectedPlayers([...selectedPlayers, userId]);
+      setPlayerSearchQuery('');
+      setSearchResults([]);
+    }
+  };
+
+  const removePlayer = (userId: string) => {
+    setSelectedPlayers(selectedPlayers.filter(id => id !== userId));
+  };
 
   useEffect(() => {
     if (selectedDate && params.fieldId) {
@@ -84,7 +167,7 @@ export default function ReservationPage() {
       const basePrice = 500; // Örnek fiyat
       const totalPrice = basePrice * duration;
 
-      await reservationService.create({
+      const reservationData: any = {
         fieldId: params.fieldId as string,
         reservationDate: selectedDate,
         startTime: selectedTime,
@@ -92,10 +175,31 @@ export default function ReservationPage() {
         basePrice: basePrice,
         totalPrice: totalPrice,
         teamName: teamName || undefined,
-      });
+      };
 
-      alert('Rezervasyon başarıyla oluşturuldu!');
-      router.push('/rezervasyonlarim');
+      // Takım seçildiyse ekle
+      if (useTeam && userTeam) {
+        reservationData.teamId = userTeam.team.id;
+        reservationData.teamName = userTeam.team.name;
+      }
+
+      // Manuel oyuncu seçildiyse ekle
+      if (addPlayers && selectedPlayers.length > 0) {
+        reservationData.playerIds = selectedPlayers;
+      }
+
+      console.log('Creating reservation with data:', reservationData);
+
+      await reservationService.create(reservationData);
+
+      setNotification({
+        type: 'success',
+        title: 'Rezervasyon Başarılı!',
+        message: 'Rezervasyonunuz başarıyla oluşturuldu. Rezervasyonlarım sayfasına yönlendiriliyorsunuz...'
+      });
+      setTimeout(() => {
+        router.push('/rezervasyonlarim');
+      }, 2000);
     } catch (error: any) {
       if (error.response?.data?.error === 'OVERLAPPING_RESERVATION') {
         setError('Bu saat aralığı için zaten bir rezervasyon bulunmaktadır.');
@@ -289,25 +393,163 @@ export default function ReservationPage() {
                     </div>
                   </div>
 
-                  {/* Team Name */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Takım Adı (Opsiyonel)
+                  {/* Team & Players Selection */}
+                  <div className="space-y-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Takım & Oyuncular (Opsiyonel)
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+
+                    {/* Takım Seçimi Toggle */}
+                    {userTeam ? (
+                      <div className={`relative p-5 rounded-2xl border-2 transition-all ${
+                        useTeam
+                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-600 shadow-lg'
+                          : 'bg-white border-gray-200 hover:border-blue-300'
+                      }`}>
+                        <div className="flex items-start gap-4">
+                          <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                            useTeam ? 'bg-white/20' : 'bg-blue-50'
+                          }`}>
+                            <svg className={`w-6 h-6 ${useTeam ? 'text-white' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className={`text-lg font-bold ${useTeam ? 'text-white' : 'text-gray-900'}`}>
+                                {userTeam.team?.name || userTeam.name}
+                              </h3>
+                              {userTeam.members && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  useTeam ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {userTeam.members.length} üye
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-sm mb-3 ${useTeam ? 'text-blue-100' : 'text-gray-600'}`}>
+                              {userTeam.members && userTeam.members.length > 0
+                                ? `${userTeam.members.slice(0, 3).map((m: any) => m.firstName).join(', ')}${userTeam.members.length > 3 ? '...' : ''}`
+                                : 'Takım üyeleri otomatik eklenecek'}
+                            </p>
+                            <label htmlFor="useTeam" className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                id="useTeam"
+                                checked={useTeam}
+                                onChange={(e) => setUseTeam(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className={`text-sm font-medium ${useTeam ? 'text-white' : 'text-gray-700'}`}>
+                                {useTeam ? 'Takımla rezerve ediliyor' : 'Takımımla rezerve et'}
+                              </span>
+                            </label>
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div className="p-5 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 text-center">
+                        <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium text-gray-600">Henüz bir takımınız yok</p>
+                        <p className="text-xs text-gray-500 mt-1">Takım oluşturmak için Takımım sayfasını ziyaret edin</p>
+                      </div>
+                    )}
+
+                    {/* Manuel Oyuncu Ekleme Toggle */}
+                    <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
                       <input
-                        type="text"
-                        placeholder="Örn: Yıldızlar Takımı"
-                        value={teamName}
-                        onChange={(e) => setTeamName(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                        type="checkbox"
+                        id="addPlayers"
+                        checked={addPlayers}
+                        onChange={(e) => setAddPlayers(e.target.checked)}
+                        className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                       />
+                      <label htmlFor="addPlayers" className="flex-1 cursor-pointer">
+                        <span className="font-semibold text-gray-900">Manuel oyuncu ekle</span>
+                        <p className="text-xs text-gray-600 mt-0.5">Kullanıcı adıyla arama yaparak ekle</p>
+                      </label>
                     </div>
+
+                    {/* Oyuncu Arama */}
+                    {addPlayers && (
+                      <div className="animate-slideIn space-y-3">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Kullanıcı adı ara..."
+                            value={playerSearchQuery}
+                            onChange={(e) => {
+                              setPlayerSearchQuery(e.target.value);
+                              searchPlayers(e.target.value);
+                            }}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          />
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* Arama Sonuçları */}
+                        {searchResults.length > 0 && (
+                          <div className="bg-white border-2 border-purple-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            {searchResults.map((user) => (
+                              <button
+                                key={user.id}
+                                type="button"
+                                onClick={() => addPlayer(user.id)}
+                                className="w-full px-4 py-3 hover:bg-purple-50 transition-colors flex items-center gap-3 border-b border-gray-100 last:border-0"
+                              >
+                                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                                  {user.firstName?.[0]}{user.lastName?.[0]}
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <div className="font-semibold text-gray-900">{user.firstName} {user.lastName}</div>
+                                  <div className="text-xs text-gray-500">@{user.email?.split('@')[0]}</div>
+                                </div>
+                                <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Seçili Oyuncular */}
+                        {selectedPlayers.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-sm font-semibold text-gray-700">Seçili Oyuncular ({selectedPlayers.length})</div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedPlayers.map((playerId) => {
+                                const player = searchResults.find(u => u.id === playerId);
+                                return (
+                                  <div
+                                    key={playerId}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                                  >
+                                    <span>{player?.firstName || 'Oyuncu'}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removePlayer(playerId)}
+                                      className="hover:bg-purple-200 rounded-full p-0.5 transition-colors"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -338,7 +580,7 @@ export default function ReservationPage() {
                           <span className="text-white/90 font-medium">Tarih:</span>
                         </div>
                         <span className="font-bold">
-                          {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('tr-TR') : '-'}
+                          {selectedDate ? selectedDate.split('-').reverse().join('.') : '-'}
                         </span>
                       </div>
 
@@ -441,6 +683,16 @@ export default function ReservationPage() {
           </div>
         </form>
       </main>
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          type={notification.type}
+          title={notification.title}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 }

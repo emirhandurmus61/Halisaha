@@ -41,17 +41,26 @@ interface MatchProposal {
   proposerTeamId: string;
   proposerTeamName: string;
   proposerTeamLogo?: string;
+  proposerTeamElo?: number;
+  proposedBy?: {
+    firstName: string;
+    lastName: string;
+  };
   targetTeamId: string;
   targetTeamName: string;
   targetTeamLogo?: string;
+  targetTeamElo?: number;
   proposedDate: string;
   proposedTime: string;
+  venueName?: string;
   message?: string;
   matchDuration: number;
   fieldSize?: string;
   costSharing: string;
   estimatedCost?: number;
   status: string;
+  responseMessage?: string;
+  respondedAt?: string;
   createdAt: string;
   listing?: OpponentListing;
 }
@@ -943,25 +952,42 @@ export default function OpponentSearchPage() {
                   className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all overflow-hidden border-2 border-transparent hover:border-green-200"
                 >
                   <div className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                    {/* Team Header with Status */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                       {/* Team Info */}
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-start gap-4">
                         {proposal.proposerTeamLogo ? (
                           <img
                             src={`${backendUrl}${proposal.proposerTeamLogo}`}
                             alt={proposal.proposerTeamName}
-                            className="w-16 h-16 rounded-xl object-cover border-2 border-green-500"
+                            className="w-20 h-20 rounded-xl object-cover border-2 border-green-500"
                           />
                         ) : (
-                          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                             </svg>
                           </div>
                         )}
-                        <div>
-                          <h3 className="font-bold text-xl text-gray-900">{proposal.proposerTeamName}</h3>
-                          <p className="text-sm text-gray-600">Teklif Gönderdi</p>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-2xl text-gray-900 mb-1">{proposal.proposerTeamName}</h3>
+                          {proposal.proposerTeamElo && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg font-medium">
+                                ELO: {proposal.proposerTeamElo}
+                              </span>
+                            </div>
+                          )}
+                          {proposal.proposedBy && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                              </svg>
+                              <span>
+                                <span className="font-medium">Gönderen:</span> {proposal.proposedBy.firstName} {proposal.proposedBy.lastName}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -978,32 +1004,72 @@ export default function OpponentSearchPage() {
                     </div>
 
                     {/* Proposal Details */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Tarih</div>
-                        <div className="font-semibold text-gray-900">
-                          {new Date(proposal.proposedDate).toLocaleDateString('tr-TR')}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Saat</div>
-                        <div className="font-semibold text-gray-900">{proposal.proposedTime}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-600 mb-1">Süre</div>
-                        <div className="font-semibold text-gray-900">{proposal.matchDuration} dk</div>
-                      </div>
-                      {proposal.fieldSize && (
+                    <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Teklif Detayları</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <div className="text-sm text-gray-600 mb-1">Saha</div>
-                          <div className="font-semibold text-gray-900">{fieldSizeLabels[proposal.fieldSize] || proposal.fieldSize}</div>
+                          <div className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Tarih
+                          </div>
+                          <div className="font-semibold text-gray-900">
+                            {new Date(proposal.proposedDate).toLocaleDateString('tr-TR')}
+                          </div>
                         </div>
-                      )}
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Saat
+                          </div>
+                          <div className="font-semibold text-gray-900">{proposal.proposedTime}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Süre</div>
+                          <div className="font-semibold text-gray-900">{proposal.matchDuration} dk</div>
+                        </div>
+                        {proposal.fieldSize && (
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Saha</div>
+                            <div className="font-semibold text-gray-900">{fieldSizeLabels[proposal.fieldSize] || proposal.fieldSize}</div>
+                          </div>
+                        )}
+                        {proposal.venueName && (
+                          <div className="col-span-2">
+                            <div className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              Saha
+                            </div>
+                            <div className="font-semibold text-gray-900">{proposal.venueName}</div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Maliyet Paylaşımı</div>
+                          <div className="font-semibold text-gray-900">{costSharingLabels[proposal.costSharing]}</div>
+                        </div>
+                        {proposal.estimatedCost && (
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Tahmini Maliyet</div>
+                            <div className="font-semibold text-gray-900">{proposal.estimatedCost} ₺</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {proposal.message && (
-                      <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                        <div className="text-sm font-semibold text-gray-700 mb-1">Mesaj:</div>
+                      <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                        <div className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                          </svg>
+                          Mesaj
+                        </div>
                         <p className="text-gray-700">{proposal.message}</p>
                       </div>
                     )}
@@ -1474,15 +1540,27 @@ export default function OpponentSearchPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Saat <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="time"
-                  value={proposalForm.proposedTime}
-                  onChange={(e) => setProposalForm({ ...proposalForm, proposedTime: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
-                />
+                <div className="grid grid-cols-4 gap-2.5">
+                  {['16:00', '17:00', '18:00', '19:00',
+                    '20:00', '21:00', '22:00', '23:00',
+                    '00:00', '01:00', '02:00', '03:00'].map((time) => (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => setProposalForm({ ...proposalForm, proposedTime: time })}
+                      className={`relative px-4 py-3 rounded-xl font-semibold text-base transition-all ${
+                        proposalForm.proposedTime === time
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg scale-105'
+                          : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-400 hover:shadow-md'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

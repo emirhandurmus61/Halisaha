@@ -11,6 +11,7 @@ import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  getTeamMatches,
 } from '../controllers/team.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { uploadTeamLogo } from '../middleware/upload.middleware';
@@ -33,5 +34,8 @@ router.post('/invitations/:invitationId/respond', respondToInvitation);
 router.get('/notifications', getNotifications);
 router.post('/notifications/:notificationId/read', markNotificationAsRead);
 router.post('/notifications/read-all', markAllNotificationsAsRead);
+
+// Takım maçları
+router.get('/matches', getTeamMatches);
 
 export default router;

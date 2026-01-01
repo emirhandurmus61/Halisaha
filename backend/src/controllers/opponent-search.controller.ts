@@ -640,7 +640,7 @@ export const respondToMatchProposal = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { proposalId } = req.params;
-    const { accept, responseMessage } = req.body;
+    const { response: responseType, responseMessage } = req.body;
 
     if (!userId) {
       return res.status(401).json({
@@ -677,7 +677,7 @@ export const respondToMatchProposal = async (req: Request, res: Response) => {
       });
     }
 
-    const newStatus = accept ? 'accepted' : 'rejected';
+    const newStatus = responseType === 'accepted' ? 'accepted' : 'rejected';
 
     // Teklifi güncelle
     await pool.query(
@@ -693,9 +693,9 @@ export const respondToMatchProposal = async (req: Request, res: Response) => {
        VALUES ($1, $2, $3, $4, $5)`,
       [
         proposal.proposed_by_user_id,
-        accept ? 'match_proposal_accepted' : 'match_proposal_rejected',
-        accept ? 'Maç Teklifi Kabul Edildi!' : 'Maç Teklifi Reddedildi',
-        accept
+        newStatus === 'accepted' ? 'match_proposal_accepted' : 'match_proposal_rejected',
+        newStatus === 'accepted' ? 'Maç Teklifi Kabul Edildi!' : 'Maç Teklifi Reddedildi',
+        newStatus === 'accepted'
           ? `${proposal.target_team_name} takımı maç teklifinizi kabul etti!`
           : `${proposal.target_team_name} takımı maç teklifinizi reddetti.`,
         JSON.stringify({
@@ -711,7 +711,7 @@ export const respondToMatchProposal = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: accept ? 'Maç teklifi kabul edildi' : 'Maç teklifi reddedildi',
+      message: newStatus === 'accepted' ? 'Maç teklifi kabul edildi' : 'Maç teklifi reddedildi',
     });
   } catch (error: any) {
     console.error('Respond to match proposal error:', error);

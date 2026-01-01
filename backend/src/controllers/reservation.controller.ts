@@ -44,6 +44,7 @@ export const getAllReservations = async (req: Request, res: Response) => {
       },
     }));
 
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({
       success: true,
       data: formattedData,
@@ -97,6 +98,8 @@ export const getReservationById = async (req: Request, res: Response) => {
 
 // Yeni rezervasyon oluştur
 export const createReservation = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
   try {
     const userId = req.user?.userId;
     const {
@@ -107,6 +110,8 @@ export const createReservation = async (req: Request, res: Response) => {
       basePrice,
       totalPrice,
       teamName,
+      teamId,
+      playerIds, // Manuel eklenen oyuncular
     } = req.body;
 
     // Validation
@@ -117,14 +122,15 @@ export const createReservation = async (req: Request, res: Response) => {
       });
     }
 
+    await client.query('BEGIN');
+
     // Rezervasyon oluştur
-    // Not: Çifte rezervasyon kontrolü veritabanı seviyesinde yapılıyor (Exclusion Constraint)
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO reservations (
         field_id, user_id, reservation_date, start_time, end_time,
-        base_price, total_price, team_name, status, payment_status
+        base_price, total_price, team_name, team_id, status, payment_status
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'pending')
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', 'pending')
        RETURNING *`,
       [
         fieldId,
@@ -135,8 +141,61 @@ export const createReservation = async (req: Request, res: Response) => {
         basePrice || totalPrice,
         totalPrice,
         teamName,
+        teamId || null,
       ]
     );
+
+    const reservationId = result.rows[0].id;
+
+    // Eğer takım seçildiyse, takım üyelerini ve kaptanı ekle
+    if (teamId) {
+      // Takım bilgisini al (kaptanı bulmak için)
+      const teamInfo = await client.query(
+        `SELECT captain_id FROM teams WHERE id = $1`,
+        [teamId]
+      );
+
+      if (teamInfo.rows.length > 0) {
+        const captainId = teamInfo.rows[0].captain_id;
+
+        // Takım kaptanını ekle
+        await client.query(
+          `INSERT INTO reservation_players (reservation_id, user_id, added_via, team_id)
+           VALUES ($1, $2, 'team', $3)
+           ON CONFLICT (reservation_id, user_id) DO NOTHING`,
+          [reservationId, captainId, teamId]
+        );
+
+        // Takım üyelerini ekle
+        const teamMembers = await client.query(
+          `SELECT user_id FROM team_members WHERE team_id = $1 AND status = 'active'`,
+          [teamId]
+        );
+
+        for (const member of teamMembers.rows) {
+          await client.query(
+            `INSERT INTO reservation_players (reservation_id, user_id, added_via, team_id)
+             VALUES ($1, $2, 'team', $3)
+             ON CONFLICT (reservation_id, user_id) DO NOTHING`,
+            [reservationId, member.user_id, teamId]
+          );
+        }
+      }
+    }
+
+    // Manuel eklenen oyuncuları ekle
+    if (playerIds && Array.isArray(playerIds) && playerIds.length > 0) {
+      for (const playerId of playerIds) {
+        await client.query(
+          `INSERT INTO reservation_players (reservation_id, user_id, added_via)
+           VALUES ($1, $2, 'manual')
+           ON CONFLICT (reservation_id, user_id) DO NOTHING`,
+          [reservationId, playerId]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
 
     res.status(201).json({
       success: true,
@@ -144,6 +203,7 @@ export const createReservation = async (req: Request, res: Response) => {
       data: result.rows[0],
     });
   } catch (error: any) {
+    await client.query('ROLLBACK');
     console.error('Create reservation error:', error);
 
     // Çifte rezervasyon hatası
@@ -160,6 +220,8 @@ export const createReservation = async (req: Request, res: Response) => {
       message: 'Rezervasyon oluşturulurken hata oluştu',
       error: error.message,
     });
+  } finally {
+    client.release();
   }
 };
 

@@ -4,7 +4,8 @@ import {
   getUserById,
   updateProfilePicture,
   updateProfile,
-  changePassword
+  changePassword,
+  searchUsers
 } from '../controllers/user.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { uploadProfilePicture } from '../middleware/upload.middleware';
@@ -15,6 +16,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/', getAllUsers);
+router.get('/search', searchUsers); // ÖNEMLİ: :id'den önce olmalı
 router.get('/:id', getUserById);
 router.post('/profile-picture', uploadProfilePicture.single('profilePicture'), updateProfilePicture);
 router.put('/profile', updateProfile);
