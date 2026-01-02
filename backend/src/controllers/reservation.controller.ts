@@ -124,18 +124,26 @@ export const createReservation = async (req: Request, res: Response) => {
 
     await client.query('BEGIN');
 
+    // Tarih formatını kontrol et ve düzelt (timezone kayması önleme)
+    // YYYY-MM-DD formatını garantilemek için
+    let formattedDate = reservationDate;
+    if (reservationDate.includes('T')) {
+      // Eğer ISO string geldiyse, sadece tarih kısmını al
+      formattedDate = reservationDate.split('T')[0];
+    }
+
     // Rezervasyon oluştur
     const result = await client.query(
       `INSERT INTO reservations (
         field_id, user_id, reservation_date, start_time, end_time,
         base_price, total_price, team_name, team_id, status, payment_status
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', 'pending')
+       VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8, $9, 'pending', 'pending')
        RETURNING *`,
       [
         fieldId,
         userId,
-        reservationDate,
+        formattedDate,
         startTime,
         endTime,
         basePrice || totalPrice,
@@ -237,15 +245,21 @@ export const getAvailableSlots = async (req: Request, res: Response) => {
       });
     }
 
+    // Tarih formatını düzelt (timezone kayması önleme)
+    let formattedDate = date as string;
+    if (formattedDate.includes('T')) {
+      formattedDate = formattedDate.split('T')[0];
+    }
+
     // O tarih için var olan rezervasyonları getir
     const result = await pool.query(
       `SELECT start_time, end_time
        FROM reservations
        WHERE field_id = $1
-         AND reservation_date = $2
+         AND reservation_date = $2::date
          AND status NOT IN ('cancelled', 'no_show')
        ORDER BY start_time`,
-      [fieldId, date]
+      [fieldId, formattedDate]
     );
 
     // Format data to camelCase
@@ -327,6 +341,62 @@ export const cancelReservation = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Rezervasyon iptal edilirken hata oluştu',
+      error: error.message,
+    });
+  }
+};
+
+// Rezervasyondaki oyuncuları getir
+export const getReservationPlayers = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Kimlik doğrulama hatası',
+      });
+    }
+
+    // Rezervasyonun var olduğunu ve kullanıcıya ait olduğunu kontrol et
+    const reservationCheck = await pool.query(
+      `SELECT * FROM reservations WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (reservationCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rezervasyon bulunamadı veya size ait değil',
+      });
+    }
+
+    // Rezervasyondaki oyuncuları getir (rezervasyon yapan hariç)
+    const players = await pool.query(
+      `SELECT DISTINCT
+        u.id as "userId",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.email,
+        u.profile_data as "profilePicture",
+        u.trust_score as "trustScore"
+       FROM reservation_players rp
+       JOIN users u ON rp.user_id = u.id
+       WHERE rp.reservation_id = $1 AND rp.user_id != $2
+       ORDER BY u.first_name, u.last_name`,
+      [id, userId]
+    );
+
+    res.json({
+      success: true,
+      data: players.rows,
+    });
+  } catch (error: any) {
+    console.error('Get reservation players error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Oyuncular alınırken hata oluştu',
       error: error.message,
     });
   }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface PlayerRatingModalProps {
   reservationId: string;
-  players: { id: string; firstName: string; lastName: string }[];
+  players: { userId: string; firstName: string; lastName: string }[];
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -21,6 +21,11 @@ export default function PlayerRatingModal({
     technique: 50,
     passing: 50,
     physical: 50
+  });
+  const [trustActions, setTrustActions] = useState({
+    showedUp: true,
+    causedTrouble: false,
+    wasLate: false
   });
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +63,9 @@ export default function PlayerRatingModal({
           techniqueRating: ratings.technique,
           passingRating: ratings.passing,
           physicalRating: ratings.physical,
+          showedUp: trustActions.showedUp,
+          causedTrouble: trustActions.causedTrouble,
+          wasLate: trustActions.wasLate,
           comment: comment || undefined
         })
       });
@@ -171,9 +179,9 @@ export default function PlayerRatingModal({
               onChange={(e) => setSelectedPlayer(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
             >
-              <option value="">Oyuncu seçin...</option>
-              {players.map((player) => (
-                <option key={player.id} value={player.id}>
+              <option value="" key="empty-option">Oyuncu seçin...</option>
+              {players.map((player, index) => (
+                <option key={`player-${player.userId || index}`} value={player.userId}>
                   {player.firstName} {player.lastName}
                 </option>
               ))}
@@ -189,6 +197,63 @@ export default function PlayerRatingModal({
               </div>
               <div className="text-sm text-gray-500 mt-1">/ 100</div>
             </div>
+          </div>
+
+          {/* Güven Puanı Durumu */}
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border-2 border-blue-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              ⚽ Katılım ve Davranış Durumu
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className="flex items-start gap-3 p-4 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all border-2 border-transparent hover:border-red-200">
+                <input
+                  type="checkbox"
+                  checked={!trustActions.showedUp}
+                  onChange={(e) => setTrustActions({ ...trustActions, showedUp: !e.target.checked })}
+                  className="w-5 h-5 accent-red-600 mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-semibold text-red-600">Maça Gelmedi</div>
+                  <div className="text-xs text-gray-500 mt-1">-15 Güven Puanı</div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-4 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all border-2 border-transparent hover:border-red-200">
+                <input
+                  type="checkbox"
+                  checked={trustActions.causedTrouble}
+                  onChange={(e) => setTrustActions({ ...trustActions, causedTrouble: e.target.checked })}
+                  className="w-5 h-5 accent-red-600 mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-semibold text-red-600">Kavga Çıkardı</div>
+                  <div className="text-xs text-gray-500 mt-1">-20 Güven Puanı</div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-4 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all border-2 border-transparent hover:border-orange-200">
+                <input
+                  type="checkbox"
+                  checked={trustActions.wasLate}
+                  onChange={(e) => setTrustActions({ ...trustActions, wasLate: e.target.checked })}
+                  className="w-5 h-5 accent-orange-600 mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-semibold text-orange-600">Geç Kaldı</div>
+                  <div className="text-xs text-gray-500 mt-1">-5 Güven Puanı</div>
+                </div>
+              </label>
+            </div>
+            {trustActions.showedUp && !trustActions.causedTrouble && !trustActions.wasLate && (
+              <div className="mt-3 p-3 bg-green-100 border-2 border-green-300 rounded-xl">
+                <div className="flex items-center gap-2 text-green-800">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-semibold text-sm">İyi davranış: +2 Güven Puanı</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Rating Sliders */}

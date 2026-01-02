@@ -5,6 +5,7 @@ import {
   createReservation,
   getAvailableSlots,
   cancelReservation,
+  getReservationPlayers,
 } from '../controllers/reservation.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -17,6 +18,7 @@ router.get('/available-slots', getAvailableSlots);
 router.use(authenticateToken);
 
 router.get('/', getAllReservations);
+router.get('/:id/players', getReservationPlayers);
 router.get('/:id', getReservationById);
 router.post('/', createReservation);
 router.patch('/:id/cancel', cancelReservation);

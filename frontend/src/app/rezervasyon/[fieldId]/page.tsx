@@ -38,9 +38,13 @@ export default function ReservationPage() {
       return;
     }
 
-    // Bugünün tarihini varsayılan olarak set et
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
+    // Bugünün tarihini varsayılan olarak set et (yerel zaman diliminde)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const localDate = `${year}-${month}-${day}`;
+    setSelectedDate(localDate);
 
     // Kullanıcının takımlarını yükle
     loadUserTeams();
@@ -290,7 +294,14 @@ export default function ReservationPage() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={(() => {
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  })()}
+                  lang="tr"
                   required
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-lg font-medium"
                 />
@@ -580,7 +591,11 @@ export default function ReservationPage() {
                           <span className="text-white/90 font-medium">Tarih:</span>
                         </div>
                         <span className="font-bold">
-                          {selectedDate ? selectedDate.split('-').reverse().join('.') : '-'}
+                          {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('tr-TR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          }) : '-'}
                         </span>
                       </div>
 

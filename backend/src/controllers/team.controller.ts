@@ -854,11 +854,27 @@ export const getTeamMatches = async (req: Request, res: Response) => {
     const pastMatches: any[] = [];
 
     matchesResult.rows.forEach((match) => {
-      const matchDateTime = new Date(match.reservation_date + 'T' + match.end_time);
+      // Tarihi YYYY-MM-DD formatında garanti et
+      let reservationDate = match.reservation_date;
+      if (reservationDate && typeof reservationDate === 'object') {
+        // PostgreSQL Date object ise string'e çevir
+        reservationDate = reservationDate.toISOString().split('T')[0];
+      } else if (typeof reservationDate === 'string' && reservationDate.includes('T')) {
+        // ISO string ise sadece tarih kısmını al
+        reservationDate = reservationDate.split('T')[0];
+      }
+
+      // Tarih ve saati local timezone'da doğru parse et
+      // YYYY-MM-DD formatındaki tarihi parse et
+      const [year, month, day] = reservationDate.split('-').map(Number);
+      const [hours, minutes] = match.end_time.split(':').map(Number);
+
+      // Local timezone'da tarih oluştur (UTC değil!)
+      const matchDateTime = new Date(year, month - 1, day, hours, minutes, 0);
 
       const formattedMatch = {
         id: match.id,
-        reservationDate: match.reservation_date,
+        reservationDate: reservationDate,
         startTime: match.start_time,
         endTime: match.end_time,
         status: match.status,
@@ -878,11 +894,31 @@ export const getTeamMatches = async (req: Request, res: Response) => {
         },
       };
 
+      // Debug log
+      console.log('Match:', reservationDate, match.start_time, '-', match.end_time,
+                  '| MatchTime:', matchDateTime.toISOString(),
+                  '| Now:', now.toISOString(),
+                  '| Future?', matchDateTime > now, '| Status:', match.status);
+
       if (matchDateTime > now) {
         upcomingMatches.push(formattedMatch);
       } else {
         pastMatches.push(formattedMatch);
       }
+    });
+
+    // Gelecek maçları tarihe göre sırala (yakından uzağa)
+    upcomingMatches.sort((a, b) => {
+      const dateA = new Date(`${a.reservationDate}T${a.startTime}`);
+      const dateB = new Date(`${b.reservationDate}T${b.startTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    // Geçmiş maçları ters sırala (yeniden eskiye)
+    pastMatches.sort((a, b) => {
+      const dateA = new Date(`${a.reservationDate}T${a.startTime}`);
+      const dateB = new Date(`${b.reservationDate}T${b.startTime}`);
+      return dateB.getTime() - dateA.getTime();
     });
 
     res.json({

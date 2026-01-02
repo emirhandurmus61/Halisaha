@@ -48,7 +48,7 @@ export default function PlayerSearchPage() {
       setMySearches(mySearchesData);
 
       // Diğer aramalar = Tüm aramalar - Benim aramalarım
-      const others = allSearchesData.filter(s => s.userId !== currentUser?.userId);
+      const others = allSearchesData.filter(s => s.userId !== currentUser?.id);
       setOtherSearches(others);
     } catch (error) {
       console.error('Oyuncu aramaları yüklenemedi:', error);

@@ -649,26 +649,29 @@ export default function MyReservationsPage() {
                             onClick={async () => {
                               setRatingReservation(reservation);
                               setLoadingPlayers(true);
-                              setShowRatingModal(true);
 
                               try {
                                 const token = authService.getToken();
                                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-                                const response = await fetch(`${apiUrl}/ratings/reservation/${reservation.id}/players`, {
+                                const response = await fetch(`${apiUrl}/reservations/${reservation.id}/players`, {
                                   headers: {
                                     'Authorization': `Bearer ${token}`
                                   }
                                 });
 
                                 const data = await response.json();
-                                console.log('Rateable players:', data);
+                                console.log('Rateable players response:', data);
 
                                 if (data.success) {
                                   setRateablePlayers(data.data || []);
+                                  setShowRatingModal(true);
+                                } else {
+                                  alert('Oyuncular yüklenemedi: ' + (data.message || 'Bilinmeyen hata'));
                                 }
-                              } catch (error) {
+                              } catch (error: any) {
                                 console.error('Error loading players:', error);
+                                alert('Oyuncular yüklenirken hata oluştu: ' + (error.message || JSON.stringify(error)));
                               } finally {
                                 setLoadingPlayers(false);
                               }

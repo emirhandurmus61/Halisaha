@@ -12,6 +12,9 @@ export const createRating = async (req: Request, res: Response) => {
       techniqueRating,
       passingRating,
       physicalRating,
+      showedUp,
+      causedTrouble,
+      wasLate,
       comment
     } = req.body;
 
@@ -66,8 +69,9 @@ export const createRating = async (req: Request, res: Response) => {
     const result = await pool.query(
       `INSERT INTO player_ratings (
         reservation_id, rated_user_id, rater_user_id,
-        speed_rating, technique_rating, passing_rating, physical_rating, comment
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        speed_rating, technique_rating, passing_rating, physical_rating,
+        showed_up, caused_trouble, was_late, comment
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         reservationId,
@@ -77,6 +81,9 @@ export const createRating = async (req: Request, res: Response) => {
         techniqueRating,
         passingRating,
         physicalRating,
+        showedUp !== undefined ? showedUp : true,
+        causedTrouble !== undefined ? causedTrouble : false,
+        wasLate !== undefined ? wasLate : false,
         comment || null
       ]
     );
@@ -173,7 +180,7 @@ export const getRateablePlayers = async (req: Request, res: Response) => {
 
     // Rezervasyonda kayıtlı oyuncuları getir (rezervasyon yapan hariç)
     const players = await pool.query(
-      `SELECT DISTINCT u.id, u.first_name as "firstName", u.last_name as "lastName", u.email
+      `SELECT DISTINCT u.id as "userId", u.first_name as "firstName", u.last_name as "lastName", u.email
        FROM reservation_players rp
        JOIN users u ON rp.user_id = u.id
        WHERE rp.reservation_id = $1 AND rp.user_id != $2
