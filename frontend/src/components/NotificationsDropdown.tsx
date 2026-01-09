@@ -194,6 +194,14 @@ export default function NotificationsDropdown() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      case 'reservation_created':
+        return (
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        );
       case 'team_invitation_accepted':
         return (
           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -254,6 +262,9 @@ export default function NotificationsDropdown() {
     if (notification.type.startsWith('match_proposal')) {
       router.push('/mac-teklifleri');
       setIsOpen(false);
+    } else if (notification.type === 'reservation_created') {
+      router.push('/rezervasyonlarim');
+      setIsOpen(false);
     }
   };
 
@@ -274,18 +285,28 @@ export default function NotificationsDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 max-h-[600px] flex flex-col">
+        <div className="fixed sm:absolute right-0 sm:right-0 top-16 sm:top-auto sm:mt-2 left-0 sm:left-auto w-full sm:w-96 bg-white sm:rounded-2xl shadow-2xl border-t sm:border border-gray-100 z-50 max-h-[calc(100vh-4rem)] sm:max-h-[600px] flex flex-col">
           {/* Header */}
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-bold text-gray-900">Bildirimler</h3>
-            {unreadCount > 0 && (
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white sm:rounded-t-2xl z-10">
+            <h3 className="font-bold text-gray-900 text-lg">Bildirimler</h3>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium whitespace-nowrap"
+                >
+                  Tümünü Okundu İşaretle
+                </button>
+              )}
               <button
-                onClick={markAllAsRead}
-                className="text-sm text-green-600 hover:text-green-700 font-medium"
+                onClick={() => setIsOpen(false)}
+                className="sm:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                Tümünü Okundu İşaretle
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-            )}
+            </div>
           </div>
 
           {/* Notifications List */}

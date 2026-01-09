@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import authService from '@/services/authService';
+import ErrorMessage from '@/components/ErrorMessage';
 
 interface Player {
   id: string;
@@ -32,6 +33,7 @@ function PlayerEvaluationContent() {
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
   const [ratings, setRatings] = useState<Record<string, PlayerRating>>({});
   const [currentRating, setCurrentRating] = useState<PlayerRating>({
@@ -67,9 +69,13 @@ function PlayerEvaluationContent() {
         if (response.ok) {
           const data = await response.json();
           setPlayers(data.data || []);
+        } else {
+          const errorData = await response.json();
+          setError(errorData.message || 'Oyuncular yüklenemedi. Rezervasyon bulunamadı veya size ait değil');
         }
       } catch (error) {
         console.error('Error fetching players:', error);
+        setError('Oyuncular yüklenirken bir hata oluştu');
       } finally {
         setLoading(false);
       }
@@ -180,6 +186,24 @@ function PlayerEvaluationContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
         <div className="text-xl text-purple-600">Oyuncular yükleniyor...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="max-w-2xl w-full">
+          <ErrorMessage
+            title="Oyuncular Yüklenemedi"
+            message={error}
+            icon="error"
+            action={{
+              label: 'Rezervasyonlarıma Dön',
+              onClick: () => router.push('/rezervasyonlarim'),
+            }}
+          />
+        </div>
       </div>
     );
   }

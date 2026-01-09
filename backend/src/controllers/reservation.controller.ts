@@ -6,43 +6,61 @@ export const getAllReservations = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
 
+    // Kullanıcının kendi yaptığı rezervasyonlar + takım üyesi olarak eklendiği rezervasyonlar
     const result = await pool.query(
-      `SELECT
-         r.id, r.field_id, r.user_id, r.reservation_date, r.start_time, r.end_time,
+      `SELECT DISTINCT
+         r.id, r.field_id, r.user_id,
+         r.reservation_date,
+         TO_CHAR(r.reservation_date, 'YYYY-MM-DD') as formatted_date,
+         r.start_time, r.end_time,
          r.status, r.payment_status, r.total_price, r.team_name, r.created_at,
          f.name as field_name, f.field_type,
-         v.name as venue_name, v.address
+         v.name as venue_name, v.address,
+         CASE WHEN r.user_id = $1 THEN true ELSE false END as is_owner,
+         u.first_name as captain_first_name, u.last_name as captain_last_name
        FROM reservations r
        JOIN fields f ON r.field_id = f.id
        JOIN venues v ON f.venue_id = v.id
-       WHERE r.user_id = $1
+       JOIN users u ON r.user_id = u.id
+       LEFT JOIN reservation_players rp ON r.id = rp.reservation_id
+       WHERE r.user_id = $1 OR rp.user_id = $1
        ORDER BY r.reservation_date DESC, r.start_time DESC
-       LIMIT 50`,
+       LIMIT 100`,
       [userId]
     );
 
     // Format data to match frontend expectations
-    const formattedData = result.rows.map((row) => ({
-      id: row.id,
-      fieldId: row.field_id,
-      userId: row.user_id,
-      reservationDate: row.reservation_date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      status: row.status,
-      paymentStatus: row.payment_status,
-      totalPrice: row.total_price,
-      teamName: row.team_name,
-      createdAt: row.created_at,
-      field: {
-        name: row.field_name,
-        fieldType: row.field_type,
-      },
-      venue: {
-        name: row.venue_name,
-        address: row.address,
-      },
-    }));
+    const formattedData = result.rows.map((row) => {
+      // Saat formatını düzelt: 24:00:00 -> 00:00:00
+      let formattedEndTime = row.end_time;
+      if (row.end_time && row.end_time.startsWith('24:')) {
+        formattedEndTime = row.end_time.replace('24:', '00:');
+      }
+
+      return {
+        id: row.id,
+        fieldId: row.field_id,
+        userId: row.user_id,
+        reservationDate: row.formatted_date, // Zaten YYYY-MM-DD formatında string
+        startTime: row.start_time,
+        endTime: formattedEndTime,
+        status: row.status,
+        paymentStatus: row.payment_status,
+        totalPrice: row.total_price,
+        teamName: row.team_name,
+        createdAt: row.created_at,
+        isOwner: row.is_owner,
+        captainName: `${row.captain_first_name} ${row.captain_last_name}`,
+        field: {
+          name: row.field_name,
+          fieldType: row.field_type,
+        },
+        venue: {
+          name: row.venue_name,
+          address: row.address,
+        },
+      };
+    });
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({
@@ -67,7 +85,11 @@ export const getReservationById = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
 
     const result = await pool.query(
-      `SELECT r.*, f.name as field_name, v.name as venue_name, v.address
+      `SELECT r.id, r.field_id, r.user_id,
+              TO_CHAR(r.reservation_date, 'YYYY-MM-DD') as reservation_date,
+              r.start_time, r.end_time, r.status, r.payment_status,
+              r.base_price, r.total_price, r.team_name, r.team_id, r.created_at, r.updated_at,
+              f.name as field_name, v.name as venue_name, v.address
        FROM reservations r
        JOIN fields f ON r.field_id = f.id
        JOIN venues v ON f.venue_id = v.id
@@ -82,9 +104,20 @@ export const getReservationById = async (req: Request, res: Response) => {
       });
     }
 
+    const row = result.rows[0];
+
+    // Saat formatını düzelt: 24:00:00 -> 00:00:00
+    let formattedEndTime = row.end_time;
+    if (row.end_time && row.end_time.startsWith('24:')) {
+      formattedEndTime = row.end_time.replace('24:', '00:');
+    }
+
     res.json({
       success: true,
-      data: result.rows[0],
+      data: {
+        ...row,
+        end_time: formattedEndTime,
+      },
     });
   } catch (error: any) {
     console.error('Get reservation by ID error:', error);
@@ -201,6 +234,55 @@ export const createReservation = async (req: Request, res: Response) => {
           [reservationId, playerId]
         );
       }
+    }
+
+    // Rezervasyon detaylarını al (bildirim için)
+    const reservationDetails = await client.query(
+      `SELECT r.*, f.name as field_name, v.name as venue_name, v.address,
+              u.first_name as captain_first_name, u.last_name as captain_last_name
+       FROM reservations r
+       JOIN fields f ON r.field_id = f.id
+       JOIN venues v ON f.venue_id = v.id
+       JOIN users u ON r.user_id = u.id
+       WHERE r.id = $1`,
+      [reservationId]
+    );
+
+    const reservation = reservationDetails.rows[0];
+
+    // Tüm rezervasyondaki oyunculara bildirim gönder (rezervasyon yapan kaptan hariç)
+    const playersToNotify = await client.query(
+      `SELECT DISTINCT user_id FROM reservation_players
+       WHERE reservation_id = $1 AND user_id != $2`,
+      [reservationId, userId]
+    );
+
+    // Her oyuncuya bildirim gönder
+    for (const player of playersToNotify.rows) {
+      const notificationTitle = 'Yeni Rezervasyon Bildirimi';
+      const notificationMessage = `${reservation.captain_first_name} ${reservation.captain_last_name}, ${reservation.venue_name} - ${reservation.field_name} sahasında ${formattedDate} tarihinde ${startTime.substring(0, 5)} - ${endTime.substring(0, 5)} saatleri arasında rezervasyon yaptı${teamName ? ` (${teamName})` : ''}. Sizi bu maça ekledi!`;
+
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, message, data)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          player.user_id,
+          'reservation_created',
+          notificationTitle,
+          notificationMessage,
+          JSON.stringify({
+            reservationId: reservationId,
+            fieldId: fieldId,
+            venueName: reservation.venue_name,
+            fieldName: reservation.field_name,
+            reservationDate: formattedDate,
+            startTime: startTime,
+            endTime: endTime,
+            teamName: teamName || null,
+            captainName: `${reservation.captain_first_name} ${reservation.captain_last_name}`
+          })
+        ]
+      );
     }
 
     await client.query('COMMIT');
@@ -359,16 +441,19 @@ export const getReservationPlayers = async (req: Request, res: Response) => {
       });
     }
 
-    // Rezervasyonun var olduğunu ve kullanıcıya ait olduğunu kontrol et
+    // Rezervasyonun var olduğunu ve kullanıcının rezervasyon sahibi VEYA oyuncu olduğunu kontrol et
     const reservationCheck = await pool.query(
-      `SELECT * FROM reservations WHERE id = $1 AND user_id = $2`,
+      `SELECT DISTINCT r.id
+       FROM reservations r
+       LEFT JOIN reservation_players rp ON r.id = rp.reservation_id
+       WHERE r.id = $1 AND (r.user_id = $2 OR rp.user_id = $2)`,
       [id, userId]
     );
 
     if (reservationCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Rezervasyon bulunamadı veya size ait değil',
+        message: 'Rezervasyon bulunamadı veya bu rezervasyona erişim yetkiniz yok',
       });
     }
 

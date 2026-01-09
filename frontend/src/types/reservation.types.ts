@@ -13,6 +13,8 @@ export interface Reservation {
   fieldName?: string;
   venueName?: string;
   address?: string;
+  isOwner?: boolean;
+  captainName?: string;
 }
 
 export interface CreateReservationData {

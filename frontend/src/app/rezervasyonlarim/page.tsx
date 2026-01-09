@@ -9,6 +9,7 @@ import { authService } from '@/services/auth.service';
 import Navbar from '@/components/Navbar';
 import Toast from '@/components/Toast';
 import PlayerRatingModal from '@/components/PlayerRatingModal';
+import ErrorMessage from '@/components/ErrorMessage';
 
 interface Reservation {
   id: string;
@@ -22,6 +23,8 @@ interface Reservation {
   totalPrice: number;
   teamName?: string;
   createdAt: string;
+  isOwner?: boolean;
+  captainName?: string;
   field?: {
     name: string;
     fieldType: string;
@@ -367,6 +370,29 @@ export default function MyReservationsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
+        <Navbar />
+        <div className="max-w-2xl mx-auto px-4 py-12">
+          <ErrorMessage
+            title="Rezervasyonlar Yüklenemedi"
+            message={error}
+            icon="error"
+            action={{
+              label: 'Tekrar Dene',
+              onClick: () => {
+                setError('');
+                setLoading(true);
+                loadReservations();
+              },
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50">
       <Navbar />
@@ -526,15 +552,28 @@ export default function MyReservationsPage() {
                   {/* Top Bar with Status */}
                   <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="text-xl font-bold text-gray-900 mb-1">
                           {reservation.venue?.name || 'Tesis Adı'}
                         </h3>
                         <p className="text-sm text-gray-600">
                           {reservation.field?.name || 'Saha Adı'} • {reservation.field?.fieldType || ''}
                         </p>
+                        {/* Takım rezervasyonu badge - mobil uyumlu */}
+                        {!reservation.isOwner && reservation.captainName && (
+                          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                            <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                              <span className="text-xs font-bold text-blue-900">Takım Rezervasyonu</span>
+                              <span className="text-xs text-blue-700 hidden sm:inline">•</span>
+                              <span className="text-xs text-blue-700">Kaptan: {reservation.captainName}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-2 justify-end">
+                      <div className="flex flex-wrap gap-2 justify-end ml-4">
                         {getStatusBadge(reservation.status)}
                         {getPaymentBadge(reservation.paymentStatus)}
                       </div>
@@ -610,7 +649,7 @@ export default function MyReservationsPage() {
 
                       {/* Action Buttons */}
                       <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-row lg:flex-wrap">
-                        {!isPast && (reservation.status === 'confirmed' || reservation.status === 'pending') && (
+                        {!isPast && reservation.isOwner && (reservation.status === 'confirmed' || reservation.status === 'pending') && (
                           <>
                             <button
                               onClick={() => handleOpenPlayerSearchModal(reservation)}
@@ -644,7 +683,7 @@ export default function MyReservationsPage() {
                           </>
                         )}
 
-                        {isPast && (
+                        {isPast && reservation.isOwner && (
                           <button
                             onClick={async () => {
                               setRatingReservation(reservation);
