@@ -170,9 +170,9 @@ export default function LoginPage() {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-semibold text-blue-800 mb-1">Test Hesabı:</p>
-              <p className="text-xs text-blue-700">Email: test@example.com</p>
-              <p className="text-xs text-blue-700">Şifre: test123</p>
+              <p className="text-sm font-semibold text-blue-800 mb-1">Admin Hesabı:</p>
+              <p className="text-xs text-blue-700">Email: Admin@Halisaha.com</p>
+              <p className="text-xs text-blue-700">Şifre: 123456</p>
             </div>
           </div>
         </div>

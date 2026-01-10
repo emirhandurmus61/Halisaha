@@ -165,7 +165,7 @@ export default function MyTeamPage() {
 
   const handleCreateTeam = async () => {
     if (!teamForm.name.trim()) {
-      alert('Takım adı zorunludur');
+      setToast({ message: 'Takım adı zorunludur', type: 'error' });
       return;
     }
 
@@ -186,16 +186,16 @@ export default function MyTeamPage() {
       const data = await response.json();
 
       if (data.success) {
-        alert('Takım başarıyla oluşturuldu!');
+        setToast({ message: 'Takım başarıyla oluşturuldu!', type: 'success' });
         setShowCreateModal(false);
         setTeamForm({ name: '', description: '' });
         fetchTeamData();
       } else {
-        alert(data.message || 'Takım oluşturulamadı');
+        setToast({ message: data.message || 'Takım oluşturulamadı', type: 'error' });
       }
     } catch (error) {
       console.error('Create team error:', error);
-      alert('Takım oluşturulurken hata oluştu');
+      setToast({ message: 'Takım oluşturulurken hata oluştu', type: 'error' });
     } finally {
       setCreating(false);
     }
@@ -380,14 +380,14 @@ export default function MyTeamPage() {
         });
       }
 
-      alert('Takım bilgileri başarıyla güncellendi!');
+      setToast({ message: 'Takım bilgileri başarıyla güncellendi!', type: 'success' });
       setShowSettingsModal(false);
       setLogoFile(null);
       setLogoPreview(null);
       fetchTeamData();
     } catch (error) {
       console.error('Update team error:', error);
-      alert('Güncelleme sırasında hata oluştu');
+      setToast({ message: 'Güncelleme sırasında hata oluştu', type: 'error' });
     } finally {
       setUpdating(false);
     }

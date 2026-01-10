@@ -306,8 +306,8 @@ export default function OpponentSearchPage() {
     setListingForm({
       title: listing.title,
       description: listing.description || '',
-      preferredDateStart: listing.preferredDateStart.split('T')[0],
-      preferredDateEnd: listing.preferredDateEnd.split('T')[0],
+      preferredDateStart: listing.preferredDateStart ? listing.preferredDateStart.split('T')[0] : '',
+      preferredDateEnd: listing.preferredDateEnd ? listing.preferredDateEnd.split('T')[0] : '',
       city: listing.city || '',
       district: listing.district || '',
       matchType: listing.matchType,
@@ -1146,9 +1146,9 @@ export default function OpponentSearchPage() {
       {/* Create Listing Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Rakip Arama İlanı Oluştur</h3>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-gray-900">Rakip Arama İlanı Oluştur</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -1159,87 +1159,87 @@ export default function OpponentSearchPage() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                   Başlık <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={listingForm.title}
                   onChange={(e) => setListingForm({ ...listingForm, title: e.target.value })}
-                  placeholder="Örn: Cumartesi günü rakip arıyoruz"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                  placeholder="Rakip Lazım Gün Saat Farketmez"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   maxLength={200}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Açıklama</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Açıklama</label>
                 <textarea
                   value={listingForm.description}
                   onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })}
-                  placeholder="İlan detayları..."
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors resize-none"
+                  placeholder="Dostluk temelli bir maç yapmak isiteyenler gelsin"
+                  rows={2}
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                     Başlangıç Tarihi <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={listingForm.preferredDateStart}
                     onChange={(e) => setListingForm({ ...listingForm, preferredDateStart: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                     Bitiş Tarihi <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={listingForm.preferredDateEnd}
                     onChange={(e) => setListingForm({ ...listingForm, preferredDateEnd: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Şehir</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Şehir</label>
                   <input
                     type="text"
                     value={listingForm.city}
                     onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}
                     placeholder="İstanbul"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">İlçe</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">İlçe</label>
                   <input
                     type="text"
                     value={listingForm.district}
                     onChange={(e) => setListingForm({ ...listingForm, district: e.target.value })}
                     placeholder="Kadıköy"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Maç Tipi</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Maç Tipi</label>
                   <select
                     value={listingForm.matchType}
                     onChange={(e) => setListingForm({ ...listingForm, matchType: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   >
                     <option value="friendly">Dostluk</option>
                     <option value="competitive">Rekabetçi</option>
@@ -1247,48 +1247,48 @@ export default function OpponentSearchPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Saha Boyutu</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Saha Boyutu</label>
                   <select
                     value={listingForm.fieldSize}
                     onChange={(e) => setListingForm({ ...listingForm, fieldSize: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   >
-                    <option value="halısaha_5">5'lik Halısaha</option>
-                    <option value="halısaha_7">7'lik Halısaha</option>
-                    <option value="halısaha_8">8'lik Halısaha</option>
-                    <option value="halısaha_11">11'lik Halısaha</option>
+                    <option value="halısaha_5">5&apos;lik Halısaha</option>
+                    <option value="halısaha_7">7&apos;lik Halısaha</option>
+                    <option value="halısaha_8">8&apos;lik Halısaha</option>
+                    <option value="halısaha_11">11&apos;lik Halısaha</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Maç Süresi (dk)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Maç Süresi (dk)</label>
                   <input
                     type="number"
                     value={listingForm.matchDuration}
                     onChange={(e) => setListingForm({ ...listingForm, matchDuration: Number(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tahmini Maliyet (₺)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tahmini Maliyet (₺)</label>
                   <input
                     type="number"
                     value={listingForm.estimatedCost}
                     onChange={(e) => setListingForm({ ...listingForm, estimatedCost: e.target.value })}
                     placeholder="200"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                    className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Maliyet Paylaşımı</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Maliyet Paylaşımı</label>
                 <select
                   value={listingForm.costSharing}
                   onChange={(e) => setListingForm({ ...listingForm, costSharing: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border-2 border-gray-200 focus:border-green-500 focus:outline-none transition-colors"
                 >
                   <option value="split">Yarı Yarıya</option>
                   <option value="home_pays">Ev Sahibi Öder</option>
@@ -1298,10 +1298,10 @@ export default function OpponentSearchPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-8">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+                className="flex-1 px-5 py-3 text-sm border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
                 disabled={creating}
               >
                 İptal
@@ -1309,7 +1309,7 @@ export default function OpponentSearchPage() {
               <button
                 onClick={handleCreateListing}
                 disabled={creating}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                className="flex-1 px-5 py-3 text-sm bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
               >
                 {creating ? 'Oluşturuluyor...' : 'İlanı Yayınla'}
               </button>
