@@ -198,7 +198,10 @@ export default function MyReservationsPage() {
 
   const handleCreatePlayerSearch = async () => {
     if (!selectedReservationForSearch || playersNeeded < 1 || !description.trim()) {
-      alert('Lütfen tüm alanları doldurun');
+      setToast({
+        message: 'Lütfen tüm alanları doldurun',
+        type: 'error'
+      });
       return;
     }
 
@@ -211,11 +214,17 @@ export default function MyReservationsPage() {
         preferredPositions: preferredPositions.length > 0 ? preferredPositions : undefined,
       });
 
-      alert('Oyuncu aramanız başarıyla oluşturuldu!');
+      setToast({
+        message: 'Oyuncu aramanız başarıyla oluşturuldu!',
+        type: 'success'
+      });
       setShowPlayerSearchModal(false);
       resetPlayerSearchForm();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Oyuncu araması oluşturulurken bir hata oluştu');
+      setToast({
+        message: error.response?.data?.message || 'Oyuncu araması oluşturulurken bir hata oluştu',
+        type: 'error'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -547,16 +556,24 @@ export default function MyReservationsPage() {
               return (
                 <div
                   key={reservation.id}
-                  className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-green-200 transition-all overflow-hidden"
+                  className={`group rounded-2xl border-2 transition-all overflow-hidden ${
+                    isPast
+                      ? 'bg-gray-50 border-gray-300'
+                      : 'bg-white border-gray-100 hover:border-green-200'
+                  }`}
                 >
                   {/* Top Bar with Status */}
-                  <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100">
+                  <div className={`px-6 py-4 border-b ${
+                    isPast
+                      ? 'bg-gray-100/50 border-gray-200'
+                      : 'bg-gradient-to-r from-gray-50 to-white border-gray-100'
+                  }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">
+                        <h3 className={`text-xl font-bold mb-1 ${isPast ? 'text-gray-600' : 'text-gray-900'}`}>
                           {reservation.venue?.name || 'Tesis Adı'}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className={`text-sm ${isPast ? 'text-gray-500' : 'text-gray-600'}`}>
                           {reservation.field?.name || 'Saha Adı'} • {reservation.field?.fieldType || ''}
                         </p>
                         {/* Takım rezervasyonu badge - mobil uyumlu */}
@@ -588,26 +605,26 @@ export default function MyReservationsPage() {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                           {/* Date */}
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-gray-500">
+                            <div className={`flex items-center gap-2 ${isPast ? 'text-gray-400' : 'text-gray-500'}`}>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
                               <span className="text-xs font-medium">Tarih</span>
                             </div>
-                            <p className="text-base font-bold text-gray-900">
+                            <p className={`text-base font-bold ${isPast ? 'text-gray-600' : 'text-gray-900'}`}>
                               {formatDate(reservation.reservationDate)}
                             </p>
                           </div>
 
                           {/* Time */}
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-gray-500">
+                            <div className={`flex items-center gap-2 ${isPast ? 'text-gray-400' : 'text-gray-500'}`}>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               <span className="text-xs font-medium">Saat</span>
                             </div>
-                            <p className="text-base font-bold text-gray-900">
+                            <p className={`text-base font-bold ${isPast ? 'text-gray-600' : 'text-gray-900'}`}>
                               {reservation.startTime.substring(0, 5)} - {reservation.endTime.substring(0, 5)}
                             </p>
                           </div>
@@ -615,34 +632,34 @@ export default function MyReservationsPage() {
                           {/* Team Name */}
                           {reservation.teamName && (
                             <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-gray-500">
+                              <div className={`flex items-center gap-2 ${isPast ? 'text-gray-400' : 'text-gray-500'}`}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
                                 <span className="text-xs font-medium">Takım</span>
                               </div>
-                              <p className="text-base font-bold text-gray-900 truncate">{reservation.teamName}</p>
+                              <p className={`text-base font-bold truncate ${isPast ? 'text-gray-600' : 'text-gray-900'}`}>{reservation.teamName}</p>
                             </div>
                           )}
 
                           {/* Price */}
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-green-600">
+                            <div className={`flex items-center gap-2 ${isPast ? 'text-gray-500' : 'text-green-600'}`}>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                               </svg>
                               <span className="text-xs font-medium">Tutar</span>
                             </div>
-                            <p className="text-xl font-bold text-green-600">₺{reservation.totalPrice}</p>
+                            <p className={`text-xl font-bold ${isPast ? 'text-gray-600' : 'text-green-600'}`}>₺{reservation.totalPrice}</p>
                           </div>
                         </div>
 
                         {isPast && (
-                          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-xs text-gray-600">
+                          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gray-200/80 border border-gray-300 rounded-lg text-sm text-gray-700">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span className="font-medium">Rezervasyon tarihi geçmiş</span>
+                            <span className="font-semibold">Rezervasyon Tarihi Geçmiş</span>
                           </div>
                         )}
                       </div>

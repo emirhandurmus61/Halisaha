@@ -22,15 +22,10 @@ export default function PlayerSearchPage() {
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
 
+  const isAuthenticated = authService.isAuthenticated();
   const currentUser = authService.getCurrentUser();
 
   useEffect(() => {
-    // Authentication kontrolü
-    if (!authService.isAuthenticated()) {
-      router.push('/giris');
-      return;
-    }
-
     loadSearches();
   }, [router]);
 
@@ -38,18 +33,21 @@ export default function PlayerSearchPage() {
     try {
       setLoading(true);
 
-      // Paralel olarak hem kendi aramalarımızı hem diğerlerini çek
-      const [mySearchesData, allSearchesData] = await Promise.all([
-        playerSearchService.getMySearches(),
-        playerSearchService.getAll()
-      ]);
+      if (isAuthenticated) {
+        // Üye ise hem kendi aramalarını hem diğerlerini çek
+        const [mySearchesData, allSearchesData] = await Promise.all([
+          playerSearchService.getMySearches(),
+          playerSearchService.getAll()
+        ]);
 
-      // Benim aramalarım backend'den geldi
-      setMySearches(mySearchesData);
-
-      // Diğer aramalar = Tüm aramalar - Benim aramalarım
-      const others = allSearchesData.filter(s => s.userId !== currentUser?.id);
-      setOtherSearches(others);
+        setMySearches(mySearchesData);
+        const others = allSearchesData.filter(s => s.userId !== currentUser?.id);
+        setOtherSearches(others);
+      } else {
+        // Üye değilse sadece diğer aramaları çek
+        const allSearchesData = await playerSearchService.getAll();
+        setOtherSearches(allSearchesData);
+      }
     } catch (error) {
       console.error('Oyuncu aramaları yüklenemedi:', error);
       setError('Oyuncu aramaları yüklenirken bir hata oluştu');
@@ -68,6 +66,12 @@ export default function PlayerSearchPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const handleOpenJoinModal = (search: PlayerSearch) => {
+    // Üye kontrolü - üye değilse giriş sayfasına yönlendir
+    if (!authService.isAuthenticated()) {
+      router.push('/giris');
+      return;
+    }
+
     setSelectedSearchForJoin(search);
     setJoinMessage('');
     setShowJoinModal(true);
@@ -173,7 +177,7 @@ export default function PlayerSearchPage() {
     return (
       <div
         key={search.id}
-        className={`bg-white rounded-2xl border-2 border-gray-100 hover:border-green-200 transition-all overflow-hidden ${isFull ? 'opacity-60' : ''}`}
+        className={`bg-white rounded-2xl border-2 border-gray-100 hover:border-green-200 transition-all overflow-hidden flex flex-col h-full ${isFull ? 'opacity-60' : ''}`}
       >
         {/* Top Bar with Organizer & Badge */}
         <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100">
@@ -191,7 +195,7 @@ export default function PlayerSearchPage() {
         </div>
 
         {/* Main Content */}
-        <div className="p-6">
+        <div className="p-6 flex-1 flex flex-col">
           {/* Venue & Field Info */}
           {search.venue && (
             <div className="mb-4">
@@ -225,10 +229,10 @@ export default function PlayerSearchPage() {
                 <span className="text-xs font-medium">Tarih</span>
               </div>
               <p className="text-sm font-bold text-gray-900">
-                {new Date(search.matchDate + 'T00:00:00').toLocaleDateString('tr-TR', {
+                {search.matchDate ? new Date(search.matchDate).toLocaleDateString('tr-TR', {
                   day: 'numeric',
                   month: 'short',
-                })}
+                }) : 'Tarih belirtilmemiş'}
               </p>
             </div>
 
@@ -278,44 +282,46 @@ export default function PlayerSearchPage() {
             </div>
           )}
 
-          {/* Join Button or My Search Badge */}
-          {showJoinButton ? (
-            <button
-              onClick={() => handleOpenJoinModal(search)}
-              disabled={isFull}
-              className={`w-full px-5 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                isFull
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-lg'
-              }`}
-            >
-              {isFull ? (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Dolu
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Katılma İsteği Gönder
-                </>
-              )}
-            </button>
-          ) : (
-            <Link href="/rezervasyonlarim">
-              <button className="w-full px-5 py-3 bg-blue-50 border-2 border-blue-200 text-blue-700 rounded-xl font-semibold hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                İstekleri Yönet
+          {/* Join Button or My Search Badge - Pushed to bottom */}
+          <div className="mt-auto">
+            {showJoinButton ? (
+              <button
+                onClick={() => handleOpenJoinModal(search)}
+                disabled={isFull}
+                className={`w-full px-5 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                  isFull
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-lg'
+                }`}
+              >
+                {isFull ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Dolu
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Katılma İsteği Gönder
+                  </>
+                )}
               </button>
-            </Link>
-          )}
+            ) : (
+              <Link href="/rezervasyonlarim">
+                <button className="w-full px-5 py-3 bg-blue-50 border-2 border-blue-200 text-blue-700 rounded-xl font-semibold hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  İstekleri Yönet
+                </button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -361,16 +367,18 @@ export default function PlayerSearchPage() {
             >
               Diğer Aramalar ({otherSearches.length})
             </button>
-            <button
-              onClick={() => setActiveTab('my')}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-                activeTab === 'my'
-                  ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Benim Aramalarım ({mySearches.length})
-            </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => setActiveTab('my')}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  activeTab === 'my'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Benim Aramalarım ({mySearches.length})
+              </button>
+            )}
           </div>
         </div>
 
@@ -482,12 +490,12 @@ export default function PlayerSearchPage() {
       {/* Join Request Modal */}
       {showJoinModal && selectedSearchForJoin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[95vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-t-2xl">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
                   Katılma İsteği Gönder
@@ -496,7 +504,7 @@ export default function PlayerSearchPage() {
                   onClick={() => setShowJoinModal(false)}
                   className="text-white/80 hover:text-white transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -504,17 +512,17 @@ export default function PlayerSearchPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-4">
               {/* Match Info */}
-              <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-5">
-                <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-3">
+                <h4 className="font-bold text-green-900 mb-2 flex items-center gap-2 text-sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Maç Bilgileri
                 </h4>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {selectedSearchForJoin.venue && (
                     <div className="col-span-2">
                       <p className="text-xs text-green-700 font-medium mb-1">Tesis & Saha</p>
@@ -532,11 +540,11 @@ export default function PlayerSearchPage() {
                   <div>
                     <p className="text-xs text-green-700 font-medium mb-1">Tarih</p>
                     <p className="text-sm font-bold text-green-900">
-                      {new Date(selectedSearchForJoin.matchDate + 'T00:00:00').toLocaleDateString('tr-TR', {
+                      {selectedSearchForJoin.matchDate ? new Date(selectedSearchForJoin.matchDate).toLocaleDateString('tr-TR', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric'
-                      })}
+                      }) : 'Tarih belirtilmemiş'}
                     </p>
                   </div>
 
@@ -563,76 +571,67 @@ export default function PlayerSearchPage() {
                 </div>
 
                 {selectedSearchForJoin.description && (
-                  <div className="mt-3 pt-3 border-t border-green-300">
+                  <div className="mt-2 pt-2 border-t border-green-300">
                     <p className="text-xs text-green-700 font-medium mb-1">Açıklama</p>
-                    <p className="text-sm text-green-900">{selectedSearchForJoin.description}</p>
+                    <p className="text-xs text-green-900 line-clamp-2">{selectedSearchForJoin.description}</p>
                   </div>
                 )}
               </div>
 
               {/* Message Input */}
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">
+                <label className="block text-sm font-bold text-gray-900 mb-1">
                   Katılım Mesajınız
-                  <span className="text-gray-500 font-normal ml-2">(Opsiyonel)</span>
+                  <span className="text-gray-500 font-normal ml-2 text-xs">(Opsiyonel)</span>
                 </label>
-                <p className="text-sm text-gray-600 mb-3">
-                  Kendinizi tanıtın ve neden katılmak istediğinizi belirtin
-                </p>
                 <textarea
                   value={joinMessage}
                   onChange={(e) => setJoinMessage(e.target.value)}
-                  placeholder="Örnek: Merhaba, uzun süredir futbol oynuyorum. Orta saha pozisyonunda oynuyorum ve aramaya katılmak isterim..."
-                  rows={4}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 transition-colors resize-none"
+                  placeholder="Kendinizi tanıtın ve neden katılmak istediğinizi belirtin..."
+                  rows={3}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 transition-colors resize-none text-sm"
                   maxLength={500}
                 />
-                <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
-                  <span>Organizatör mesajınızı görecektir</span>
-                  <span>{joinMessage.length}/500</span>
+                <div className="mt-1 text-right text-xs text-gray-400">
+                  {joinMessage.length}/500
                 </div>
               </div>
 
               {/* Info Box */}
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-blue-900 mb-1">Bilgilendirme</h5>
-                    <p className="text-sm text-blue-800">
-                      İsteğiniz organizatöre gönderilecektir. Organizatör profilinizi inceleyip isteğinizi onaylayacak veya reddedecektir. Onay sonrasında iletişim bilgileri paylaşılacaktır.
-                    </p>
-                  </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs text-blue-800">
+                    İsteğiniz organizatöre gönderilecektir. Organizatör profilinizi inceleyip isteğinizi onaylayacak veya reddedecektir.
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-gray-50 px-6 py-4 rounded-b-2xl flex gap-3">
+            <div className="bg-gray-50 px-4 py-3 rounded-b-2xl flex gap-2">
               <button
                 onClick={() => setShowJoinModal(false)}
                 disabled={joiningSearch}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 İptal
               </button>
               <button
                 onClick={handleJoinSearch}
                 disabled={joiningSearch}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {joiningSearch ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Gönderiliyor...
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                     İstek Gönder
