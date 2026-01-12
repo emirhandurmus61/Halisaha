@@ -36,7 +36,7 @@ NODE_ENV=development
 # PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=halisaha
+DB_NAME=halisaha_db
 DB_USER=postgres
 DB_PASSWORD=your_password
 
@@ -51,20 +51,21 @@ JWT_EXPIRES_IN=7d
 # PostgreSQL'e bağlanın
 psql -U postgres
 
-# Veritabanını oluşturun
-CREATE DATABASE halisaha;
+# UUID extension'ı aktifleştirin ve veritabanını oluşturun
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE DATABASE halisaha_db;
 
 # Veritabanından çıkın
 \q
 
 # Migration'ları çalıştırın
 cd ../database/migrations
-psql -U postgres -d halisaha -f 001_create_users.sql
-psql -U postgres -d halisaha -f 002_create_venues.sql
-psql -U postgres -d halisaha -f 003_create_reservations.sql
-psql -U postgres -d halisaha -f 004_create_teams_matches.sql
-psql -U postgres -d halisaha -f 005_create_social_features.sql
-psql -U postgres -d halisaha -f 006_create_opponent_search.sql
+psql -U postgres -d halisaha_db -f 001_create_users.sql
+psql -U postgres -d halisaha_db -f 002_create_venues.sql
+psql -U postgres -d halisaha_db -f 003_create_reservations.sql
+psql -U postgres -d halisaha_db -f 004_create_teams_matches.sql
+psql -U postgres -d halisaha_db -f 005_create_social_features.sql
+psql -U postgres -d halisaha_db -f 006_create_opponent_search.sql
 ```
 
 ### 4. Frontend Kurulumu
@@ -82,7 +83,7 @@ cp .env.example .env.local
 
 **.env.local dosyasını düzenleyin:**
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
 ```
 
 ### 5. Projeyi Çalıştırın
@@ -102,22 +103,13 @@ npm run dev
 ### 6. Tarayıcıda Açın
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000/api
+- **Backend API**: http://localhost:5000/api/v1
 
 ### İlk Admin Kullanıcısı
 
 Veritabanına ilk admin kullanıcısını eklemek için:
 
-```bash
-cd database/seeds
-psql -U postgres -d halisaha -f admin_user.sql
-```
-
-**Varsayılan admin giriş bilgileri:**
-- Email: admin@halisaha.com
-- Şifre: Admin123!
-
-> ⚠️ **Önemli**: Üretim ortamında mutlaka şifreyi değiştirin!
+İlk kullanıcıyı uygulamadan "Kayıt Ol" sayfasından oluşturabilirsiniz.
 
 ## 📸 Uygulama Görselleri
 ### Ana Sayfa ve Giriş
@@ -305,18 +297,19 @@ Eğer migration'lar çalışmazsa:
 ```bash
 # Veritabanını sıfırlayın
 psql -U postgres
-DROP DATABASE halisaha;
-CREATE DATABASE halisaha;
+DROP DATABASE halisaha_db;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE DATABASE halisaha_db;
 \q
 
 # Migration'ları tekrar çalıştırın
 cd database/migrations
-psql -U postgres -d halisaha -f 001_create_users.sql
-psql -U postgres -d halisaha -f 002_create_venues.sql
-psql -U postgres -d halisaha -f 003_create_reservations.sql
-psql -U postgres -d halisaha -f 004_create_teams_matches.sql
-psql -U postgres -d halisaha -f 005_create_social_features.sql
-psql -U postgres -d halisaha -f 006_create_opponent_search.sql
+psql -U postgres -d halisaha_db -f 001_create_users.sql
+psql -U postgres -d halisaha_db -f 002_create_venues.sql
+psql -U postgres -d halisaha_db -f 003_create_reservations.sql
+psql -U postgres -d halisaha_db -f 004_create_teams_matches.sql
+psql -U postgres -d halisaha_db -f 005_create_social_features.sql
+psql -U postgres -d halisaha_db -f 006_create_opponent_search.sql
 ```
 
 ## 📄 Lisans
