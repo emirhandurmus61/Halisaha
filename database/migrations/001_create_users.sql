@@ -1,4 +1,10 @@
 -- ====================================
+-- UUID Extension
+-- ====================================
+-- PostgreSQL'de UUID kullanabilmek için gerekli extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ====================================
 -- USERS TABLE (Kullanıcılar)
 -- ====================================
 -- Tüm kullanıcıların (oyuncular, tesis sahipleri, adminler) temel bilgileri

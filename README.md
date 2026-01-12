@@ -11,7 +11,7 @@ Modern halısaha rezervasyon ve sosyal ağ platformu.
 
 ### 1. Projeyi Klonlayın
 ```bash
-git clone <repository-url>
+git clone https://github.com/emirhandurmus61/Halisaha.git
 cd Halisaha
 ```
 
@@ -51,8 +51,7 @@ JWT_EXPIRES_IN=7d
 # PostgreSQL'e bağlanın
 psql -U postgres
 
-# UUID extension'ı aktifleştirin ve veritabanını oluşturun
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+# Veritabanını oluşturun
 CREATE DATABASE halisaha_db;
 
 # Veritabanından çıkın
@@ -298,7 +297,6 @@ Eğer migration'lar çalışmazsa:
 # Veritabanını sıfırlayın
 psql -U postgres
 DROP DATABASE halisaha_db;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE DATABASE halisaha_db;
 \q
 
