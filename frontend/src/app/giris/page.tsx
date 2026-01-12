@@ -171,8 +171,8 @@ export default function LoginPage() {
             </div>
             <div className="ml-3">
               <p className="text-sm font-semibold text-blue-800 mb-1">Admin Hesabı:</p>
-              <p className="text-xs text-blue-700">Email: Admin@Halisaha.com</p>
-              <p className="text-xs text-blue-700">Şifre: 123456</p>
+              <p className="text-xs text-blue-700">Email: admin@halisaha.com</p>
+              <p className="text-xs text-blue-700">Şifre: Admin123!</p>
             </div>
           </div>
         </div>

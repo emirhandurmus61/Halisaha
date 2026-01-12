@@ -71,6 +71,11 @@ export default function MyReservationsPage() {
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // Cancel confirmation modal states
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
   useEffect(() => {
     // Authentication kontrolü
     if (!authService.isAuthenticated()) {
@@ -94,17 +99,31 @@ export default function MyReservationsPage() {
     }
   };
 
-  const handleCancelReservation = async (reservationId: string) => {
-    if (!confirm('Bu rezervasyonu iptal etmek istediğinize emin misiniz?')) {
-      return;
-    }
+  const handleCancelReservation = (reservationId: string) => {
+    setReservationToCancel(reservationId);
+    setShowCancelModal(true);
+  };
 
+  const confirmCancelReservation = async () => {
+    if (!reservationToCancel) return;
+
+    setCancelling(true);
     try {
-      await reservationService.cancel(reservationId);
-      alert('Rezervasyon başarıyla iptal edildi');
+      await reservationService.cancel(reservationToCancel);
+      setToast({
+        message: 'Rezervasyon başarıyla iptal edildi',
+        type: 'success'
+      });
       loadReservations();
+      setShowCancelModal(false);
+      setReservationToCancel(null);
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Rezervasyon iptal edilemedi');
+      setToast({
+        message: error.response?.data?.message || 'Rezervasyon iptal edilemedi',
+        type: 'error'
+      });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -1257,6 +1276,86 @@ export default function MyReservationsPage() {
             });
           }}
         />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-scale-in">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-5 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Rezervasyonu İptal Et</h3>
+                  <p className="text-sm text-red-100 mt-0.5">Bu işlem geri alınamaz</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <p className="text-gray-700 leading-relaxed text-center">
+                Bu rezervasyonu iptal etmek istediğinize emin misiniz?
+              </p>
+
+              {/* Warning Box */}
+              <div className="mt-4 bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <div className="flex gap-3">
+                  <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-bold text-red-900 text-sm mb-1">Dikkat</h4>
+                    <p className="text-xs text-red-800 leading-relaxed">
+                      İptal işlemi tamamlandıktan sonra bu rezervasyonu geri alamazsınız.
+                      İptal politikası gereği ücret iadesi yapılabilir veya yapılmayabilir.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 rounded-b-2xl border-t-2 border-gray-100">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setReservationToCancel(null);
+                  }}
+                  disabled={cancelling}
+                  className="flex-1 px-5 py-3 border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  onClick={confirmCancelReservation}
+                  disabled={cancelling}
+                  className="flex-1 px-5 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cancelling ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>İptal Ediliyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Evet, İptal Et</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast Notification */}

@@ -85,7 +85,12 @@ export default function VenuesPage() {
   };
 
   const getUniqueDistricts = () => {
-    const districts = venues
+    // Eğer il seçilmişse, sadece o ilin ilçelerini döndür
+    const venuesToFilter = selectedCity
+      ? venues.filter(venue => venue.city === selectedCity)
+      : venues;
+
+    const districts = venuesToFilter
       .map(venue => venue.district)
       .filter((district, index, self) => district && self.indexOf(district) === index);
     return districts;
@@ -151,7 +156,11 @@ export default function VenuesPage() {
               <div className="relative">
                 <select
                   value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCity(e.target.value);
+                    // Şehir değiştiğinde ilçe filtresini temizle
+                    setSelectedDistrict('');
+                  }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white transition-all"
                 >
                   <option value="">Tüm İller</option>
