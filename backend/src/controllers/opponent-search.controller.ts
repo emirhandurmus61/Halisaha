@@ -107,7 +107,7 @@ export const createOpponentListing = async (req: Request, res: Response) => {
 // Rakip arama ilanlarını listele (filtreleme ile)
 export const searchOpponentListings = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.userId; // Optional - may be undefined for unauthenticated users
     const {
       city,
       district,
@@ -121,25 +121,22 @@ export const searchOpponentListings = async (req: Request, res: Response) => {
       limit = 20,
     } = req.query;
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Kimlik doğrulama hatası',
-      });
+    let userTeamId = null;
+
+    // Kullanıcının takımını al (sadece giriş yapmışsa)
+    if (userId) {
+      const teamResult = await pool.query(
+        `SELECT id, elo_rating FROM teams WHERE captain_id = $1
+         UNION
+         SELECT t.id, t.elo_rating FROM teams t
+         JOIN team_members tm ON t.id = tm.team_id
+         WHERE tm.user_id = $1 AND tm.status = 'active'
+         LIMIT 1`,
+        [userId]
+      );
+
+      userTeamId = teamResult.rows.length > 0 ? teamResult.rows[0].id : null;
     }
-
-    // Kullanıcının takımını al
-    const teamResult = await pool.query(
-      `SELECT id, elo_rating FROM teams WHERE captain_id = $1
-       UNION
-       SELECT t.id, t.elo_rating FROM teams t
-       JOIN team_members tm ON t.id = tm.team_id
-       WHERE tm.user_id = $1 AND tm.status = 'active'
-       LIMIT 1`,
-      [userId]
-    );
-
-    const userTeamId = teamResult.rows.length > 0 ? teamResult.rows[0].id : null;
 
     // Filtre koşullarını oluştur
     const conditions: string[] = ['osl.status = $1'];

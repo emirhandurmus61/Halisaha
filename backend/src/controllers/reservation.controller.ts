@@ -15,7 +15,7 @@ export const getAllReservations = async (req: Request, res: Response) => {
          r.start_time, r.end_time,
          r.status, r.payment_status, r.total_price, r.team_name, r.created_at,
          f.name as field_name, f.field_type,
-         v.name as venue_name, v.address,
+         v.id as venue_id, v.name as venue_name, v.address,
          CASE WHEN r.user_id = $1 THEN true ELSE false END as is_owner,
          u.first_name as captain_first_name, u.last_name as captain_last_name
        FROM reservations r
@@ -56,6 +56,7 @@ export const getAllReservations = async (req: Request, res: Response) => {
           fieldType: row.field_type,
         },
         venue: {
+          id: row.venue_id,
           name: row.venue_name,
           address: row.address,
         },

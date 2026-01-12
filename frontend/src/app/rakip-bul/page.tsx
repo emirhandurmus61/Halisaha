@@ -73,6 +73,7 @@ export default function OpponentSearchPage() {
   const [receivedProposals, setReceivedProposals] = useState<MatchProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasTeam, setHasTeam] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'sent' | 'received'>('all');
 
   // Filters
@@ -119,17 +120,22 @@ export default function OpponentSearchPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.push('/giris');
-      return;
-    }
+    const authenticated = authService.isAuthenticated();
+    setIsAuthenticated(authenticated);
 
-    checkTeam();
+    // Sadece ilanları getir (kimlik doğrulama gerekmez)
     fetchListings();
-    fetchMyListings();
-    fetchSentProposals();
-    fetchReceivedProposals();
-  }, [router]);
+
+    // Giriş yapmış kullanıcılar için ekstra veriler
+    if (authenticated) {
+      checkTeam();
+      fetchMyListings();
+      fetchSentProposals();
+      fetchReceivedProposals();
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   // Auto-fetch when filters change
   useEffect(() => {
@@ -158,7 +164,6 @@ export default function OpponentSearchPage() {
 
   const fetchListings = async () => {
     try {
-      const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
       const queryParams = new URLSearchParams();
@@ -167,10 +172,15 @@ export default function OpponentSearchPage() {
       if (filters.matchType) queryParams.append('matchType', filters.matchType);
       if (filters.fieldSize) queryParams.append('fieldSize', filters.fieldSize);
 
+      // Token isteğe bağlı - giriş yapmamış kullanıcılar da görebilir
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${apiUrl}/opponent-search/listings/search?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -465,32 +475,48 @@ export default function OpponentSearchPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Rakip Bul</h1>
-            <p className="text-gray-600">Takımınız için uygun rakipler bulun ve maç teklifleri gönderin</p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Rakip Bul</h1>
+            <p className="text-sm sm:text-base text-gray-600">Takımınız için uygun rakipler bulun ve maç teklifleri gönderin</p>
           </div>
 
-          {hasTeam && (
+          {isAuthenticated && hasTeam && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-xl transform hover:scale-105 transition-all flex items-center gap-2"
+              className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-xl transform hover:scale-105 transition-all flex items-center gap-2 text-sm sm:text-base"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              İlan Oluştur
+              <span className="hidden sm:inline">İlan Oluştur</span>
+              <span className="sm:hidden">Oluştur</span>
             </button>
           )}
         </div>
 
-        {!hasTeam && (
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-8">
-            <div className="flex items-start gap-4">
-              <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+        {/* Info messages */}
+        {!isAuthenticated && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 sm:p-6 mb-8">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold text-blue-800 mb-1">Giriş Yapın</h3>
+                <p className="text-sm sm:text-base text-blue-700">İlanları görüntüleyebilirsiniz. Maç teklifi göndermek için giriş yapmalısınız.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isAuthenticated && !hasTeam && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 sm:p-6 mb-8">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
-                <h3 className="text-lg font-semibold text-yellow-800 mb-1">Takım Gerekli</h3>
-                <p className="text-yellow-700">Rakip arama ilanı oluşturmak ve maç teklifi göndermek için bir takıma sahip olmalısınız.</p>
+                <h3 className="text-base sm:text-lg font-semibold text-yellow-800 mb-1">Takım Gerekli</h3>
+                <p className="text-sm sm:text-base text-yellow-700">Rakip arama ilanı oluşturmak ve maç teklifi göndermek için bir takıma sahip olmalısınız.</p>
               </div>
             </div>
           </div>
@@ -510,7 +536,7 @@ export default function OpponentSearchPage() {
             <span className="sm:hidden">İlanlar</span>
             <span className="ml-1">({listings.length})</span>
           </button>
-          {hasTeam && (
+          {isAuthenticated && hasTeam && (
             <>
               <button
                 onClick={() => setActiveTab('mine')}
@@ -687,17 +713,28 @@ export default function OpponentSearchPage() {
                   </div>
 
                   <div className="mt-auto pt-3">
-                    {hasTeam && (
-                      <button
-                        onClick={() => {
-                          setSelectedListing(listing);
-                          setShowProposalModal(true);
-                        }}
-                        className="w-full px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                      >
-                        Maç Teklifi Gönder
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        // Giriş kontrolü
+                        if (!isAuthenticated) {
+                          setToast({ message: 'Teklif göndermek için giriş yapmalısınız', type: 'info' });
+                          setTimeout(() => router.push('/giris'), 1500);
+                          return;
+                        }
+
+                        // Takım kontrolü
+                        if (!hasTeam) {
+                          setToast({ message: 'Teklif göndermek için bir takıma sahip olmalısınız', type: 'error' });
+                          return;
+                        }
+
+                        setSelectedListing(listing);
+                        setShowProposalModal(true);
+                      }}
+                      className="w-full px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                    >
+                      Maç Teklifi Gönder
+                    </button>
                   </div>
                 </div>
               </div>

@@ -178,12 +178,13 @@ export const getRateablePlayers = async (req: Request, res: Response) => {
       });
     }
 
-    // Rezervasyonda kayıtlı oyuncuları getir (rezervasyon yapan hariç)
+    // Rezervasyonda kayıtlı oyuncuları getir (rezervasyon yapan hariç ve daha önce değerlendirilmemiş)
     const players = await pool.query(
       `SELECT DISTINCT u.id as "userId", u.first_name as "firstName", u.last_name as "lastName", u.email
        FROM reservation_players rp
        JOIN users u ON rp.user_id = u.id
-       WHERE rp.reservation_id = $1 AND rp.user_id != $2
+       LEFT JOIN player_ratings pr ON pr.reservation_id = $1 AND pr.rated_user_id = u.id AND pr.rater_user_id = $2
+       WHERE rp.reservation_id = $1 AND rp.user_id != $2 AND pr.id IS NULL
        ORDER BY u.first_name, u.last_name`,
       [reservationId, userId]
     );

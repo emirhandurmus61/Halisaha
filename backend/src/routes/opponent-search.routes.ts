@@ -16,7 +16,7 @@ const router = Router();
 
 // Rakip arama ilanları
 router.post('/listings', authenticateToken, createOpponentListing);
-router.get('/listings/search', authenticateToken, searchOpponentListings);
+router.get('/listings/search', searchOpponentListings); // Public endpoint - no auth required
 router.get('/listings/my-team', authenticateToken, getMyTeamListings);
 router.put('/listings/:listingId', authenticateToken, updateOpponentListing);
 router.delete('/listings/:listingId', authenticateToken, deleteOpponentListing);

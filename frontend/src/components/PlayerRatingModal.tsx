@@ -5,6 +5,7 @@ import { useState } from 'react';
 interface PlayerRatingModalProps {
   reservationId: string;
   players: { userId: string; firstName: string; lastName: string }[];
+  isReservationOwner: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -12,6 +13,7 @@ interface PlayerRatingModalProps {
 export default function PlayerRatingModal({
   reservationId,
   players,
+  isReservationOwner,
   onClose,
   onSuccess
 }: PlayerRatingModalProps) {
@@ -50,24 +52,31 @@ export default function PlayerRatingModal({
         ratings
       });
 
+      // Rezervasyon sahibi ise güven puanı bilgilerini de gönder
+      const requestBody: any = {
+        reservationId,
+        ratedUserId: selectedPlayer,
+        speedRating: ratings.speed,
+        techniqueRating: ratings.technique,
+        passingRating: ratings.passing,
+        physicalRating: ratings.physical,
+        comment: comment || undefined
+      };
+
+      // Sadece rezervasyon sahibi güven puanı bilgilerini gönderebilir
+      if (isReservationOwner) {
+        requestBody.showedUp = trustActions.showedUp;
+        requestBody.causedTrouble = trustActions.causedTrouble;
+        requestBody.wasLate = trustActions.wasLate;
+      }
+
       const response = await fetch(`${apiUrl}/ratings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          reservationId,
-          ratedUserId: selectedPlayer,
-          speedRating: ratings.speed,
-          techniqueRating: ratings.technique,
-          passingRating: ratings.passing,
-          physicalRating: ratings.physical,
-          showedUp: trustActions.showedUp,
-          causedTrouble: trustActions.causedTrouble,
-          wasLate: trustActions.wasLate,
-          comment: comment || undefined
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
@@ -199,11 +208,12 @@ export default function PlayerRatingModal({
             </div>
           </div>
 
-          {/* Güven Puanı Durumu */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border-2 border-blue-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              ⚽ Katılım ve Davranış Durumu
-            </h3>
+          {/* Güven Puanı Durumu - Sadece rezervasyon sahibi görebilir */}
+          {isReservationOwner && (
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border-2 border-blue-200">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                ⚽ Katılım ve Davranış Durumu
+              </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <label className="flex items-start gap-3 p-4 bg-white rounded-xl cursor-pointer hover:shadow-md transition-all border-2 border-transparent hover:border-red-200">
                 <input
@@ -254,7 +264,8 @@ export default function PlayerRatingModal({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Rating Sliders */}
           <div className="space-y-6">

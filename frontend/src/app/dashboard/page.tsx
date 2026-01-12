@@ -48,9 +48,8 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 flex items-center gap-3">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
             Hoş geldin, {user?.firstName}!
-            <span className="text-5xl">👋</span>
           </h2>
           <p className="text-xl text-gray-600 mt-3">
             Bugün hangi sahada oynamak istersin?
@@ -224,7 +223,7 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <h4 className="text-xl font-bold mb-2">💡 İpucu</h4>
+              <h4 className="text-xl font-bold mb-2">İpucu</h4>
               <p className="text-green-100 leading-relaxed">
                 Rezervasyon yaparken tarih ve saat bilgilerini dikkatlice kontrol et.
                 Oyuncu bul özelliği ile eksik oyuncularını hızlıca tamamlayabilirsin!
